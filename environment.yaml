@@ -1,0 +1,21 @@
+name: spatial_io_response
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.11
+  - scanpy>=1.9
+  - anndata>=0.10
+  - numpy
+  - pandas
+  - scipy
+  - scikit-learn
+  - matplotlib
+  - seaborn
+  - leidenalg
+  - harmonypy
+  - lifelines
+  - pip
+  - pip:
+    - decoupler
+    - infercnvpy

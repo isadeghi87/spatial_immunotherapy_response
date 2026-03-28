@@ -1,0 +1,51 @@
+# Data (large files)
+data/
+out/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+.env
+
+# R
+.Rhistory
+.RData
+.Rproj.user/
+*.rds
+*.RDS
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Large files
+*.h5ad
+*.h5
+*.hdf5
+*.tiff
+*.tif
+*.svs
+*.ndpi
+*.zarr/
+*.parquet

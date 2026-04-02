@@ -343,3 +343,11 @@ Based on the pipeline outputs and biological context, several areas need expansi
 - **Bulk Cohort Validation**: The CIBERSORTx signature reference is generated, but we need to run the actual trial datasets (e.g., IMbrave150, CheckMate-459) through deconvolution to validate our spatial/single-cell R vs NR biomarkers in large, independent bulk RNA-seq data.
 - **TCR/Clonality Metrics**: 04_complementary script computes diversity, but without robust matched scTCR-seq metadata integration, these are currently inferred metrics. Integrating accurate paired V(D)J sequencing data would firmly establish clonotype expansion in responders.
 - **Cell-Cell Communication**: A dedicated tool like CellPhoneDB or CellChat should be deployed to move beyond simple Ligand-Receptor pair subsetting, specifically looking at how mregDCs orchestrate CD8+ T cell exhaustion spatially.
+
+## Materials and Methods / Documentation
+
+The fully referenced **Materials and Methods** for this project, suitable for manuscript inclusion (*Nature Cancer* submission draft), are available in the `docs/` directory:
+- [Materials and Methods (Markdown)](docs/materials_and_methods.md)
+- [Materials and Methods (Word / DOCX)](docs/materials_and_methods.docx)
+
+These documents detail the study cohorts, scRNA-seq preprocessing, TME characterization, bulk RNA-seq deconvolution, and advanced T-cell trajectory, spatial, and regulatory network analyses used throughout these scripts.

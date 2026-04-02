@@ -1,126 +1,81 @@
 # Spatial Biomarkers of Immunotherapy Response in HCC
 
-![Python](https://img.shields.io/badge/Python-3.10%2B-blue) ![R](https://img.shields.io/badge/R-4.3%2B-276DC3) ![License: MIT](https://img.shields.io/badge/License-MIT-green) ![Status](https://img.shields.io/badge/Status-Active-brightgreen)
+![Python](https://img.shields.io/badge/Python-3.11-blue) ![R](https://img.shields.io/badge/R-4.3%2B-276DC3) ![License: MIT](https://img.shields.io/badge/License-MIT-green) ![Status](https://img.shields.io/badge/Status-Active-brightgreen)
 
 > Defining spatial immune topology biomarkers that predict response vs. resistance to anti-PD1/anti-PD-L1 immunotherapy in hepatocellular carcinoma.
 
 ## Highlights
 
-- Largest assembly of HCC immunotherapy scRNA-seq datasets
-- Spatial TME changes upon anti-PD1 treatment
-- Spatial architecture biomarkers (not just abundance)
-- Composite spatial response score via LASSO
-- Head-to-head comparison with TIDE, TMB, PD-L1, GEP
+- Largest assembly of HCC immunotherapy scRNA-seq datasets (~1M cells integrated).
+- TME characterization evaluating cell abundance, DEGs, and IO signature changes in Responder vs. Non-Responder.
+- LASSO and Random Forest models predicting response.
+- Hallmark pathway enrichment (GSEA-style), Ligand-Receptor communication, and CD8+ T cell states analysis.
+- Deconvolution of bulk RNA-seq trials and patient subtyping.
+- Fully automated SLURM-based pipeline.
 
-**Target Journal:** Nature Medicine / Nature Cancer / JCO
+## Pipeline Architecture
 
-## Repository Structure
+The analysis is broken down into modular steps running on SLURM:
 
-```
-spatial_immunotherapy_response/
-├── config/                          # Pipeline configuration
-├── data/
-│   ├── clinical_metadata/           # Patient response data
-│   ├── post_treatment/              # Post-IO samples
-│   └── pre_treatment/               # Pre-IO baseline samples
-├── docs/                            # Documentation
-├── envs/                            # Conda environment specs
-├── notebooks/                       # Analysis notebooks
-├── out/
-│   ├── analysis/                    # Integrated results
-│   ├── biomarkers/                  # Discovered biomarkers
-│   └── figures/                     # Publication figures
-├── prompts/                         # Analysis prompt templates
-├── scripts/
-│   ├── 00_data_acquisition/
-│   │   ├── download_io_datasets.py
-│   │   └── download_direct.sh
-│   └── 02_analysis/
-│       └── spatial_biomarkers.py
-├── .gitignore
-├── LICENSE
-├── environment.yaml
-├── Makefile
-└── README.md
-```
+1. **Data Acquisition & Conversion (`00_`):** Downloads and converts scRNA-seq datasets to `.h5ad` (e.g. Seurat v5 to AnnData).
+2. **Preprocessing & Integration (`01_`):** QC, total-count normalization, log1p, highly variable genes, PCA, and `Harmony` batch integration across 5 scRNA-seq datasets. Produces the `integrated_io_atlas.h5ad` (~46GB).
+3. **Response & TME Characterization (`02a_`):** Cell type annotation, IO signature scoring, cell abundance R vs NR (Mann-Whitney), and DEG discovery (Wilcoxon).
+4. **Spatial Biomarkers (`02b_`):** Heatmaps and barplots on spatial/pseudo-bulk signatures.
+5. **Bulk Deconvolution (`02c_`):** Generates a CIBERSORTx signature matrix from the scRNA-seq atlas to deconvolute trials (e.g. IMbrave150, CheckMate-459). 
+6. **Validation & Downstream (`03_`):** Trains LASSO & Random forest response predictors (patient-level). Uncovers transcriptional programs via NMF. Analyzes TCR clonality and bulk signature correlations.
+7. **Complementary Analyses (`04_`):** GSEA pathway enrichment, Ligand-Receptor interactions, CD8 state trajectories, Immune cell ratio biomarkers (e.g., CD8/Treg), and patient immune subtyping.
 
 ## Datasets
 
 ### HCC Immunotherapy scRNA-seq
 | Study | GEO | Treatment | Patients | Cells |
 |-------|-----|-----------|----------|-------|
-| Liu et al. 2022 | GSE206325 | Anti-PD1 | 30 | ~120k |
-| Zhu et al. 2023 | GSE202069 | Anti-PD1/PD-L1 | 14 | ~80k |
-| Xue et al. 2023 | GSE234241 | Anti-PD1 + TKI | 20 | ~150k |
-| Ma et al. 2019 | GSE125449 | Anti-PD1 | 8 | ~25k |
+| Liu et al. 2022 | GSE206325 | Anti-PD1 | 30 | ~680k |
+| Lu et al. 2022 | GSE149614 | Primary/Met | - | ~70k |
+| Ma et al. 2019 | GSE125449 | Landscape | 8 | ~10k |
+| Zhang et al. 2019 | GSE140228 | Immune | - | CD45+ |
 | Pfister et al. 2021 | E-MTAB-10553 | NASH-HCC + anti-PD1 | 12 | ~60k |
 
 ### Bulk RNA-seq with IO
-| Source | Treatment | Patients |
-|--------|-----------|----------|
-| IMbrave150 | Atezo+Bev | 336 |
-| CheckMate-459 | Nivo | 371 |
-| KEYNOTE-224 | Pembro | 104 |
+| Dataset | Source | Treatment | Features |
+|---------|--------|-----------|----------|
+| GSE202069 | Zhu et al. 2023 | Anti-PDL1 | Bulk Validation |
+| GSE173905 | - | - | Pseudo-bulk |
 
 ## Getting Started
 
-### Prerequisites
+### Environment
 
-- **Python 3.10+**: scanpy, scvi-tools, cell2location, squidpy, lifelines
-- **R 4.3+**: Seurat v5, survival, glmnet, ComplexHeatmap, SPATA2
+Conda environment managed via: `/data/projects/HE_ST_machine_learning/env/spatial_io_response/`
+Requires `scanpy`, `harmonypy`, `sklearn`, `scipy`, `scikit-misc` (for NMF).
 
-### Installation
+### Running the Pipeline
 
-```bash
-# Clone the repository
-git clone https://github.com/isadeghi87/spatial_immunotherapy_response.git
-cd spatial_immunotherapy_response
-
-# Create conda environment (if environment.yaml exists)
-conda env create -f environment.yaml
-# OR use envs/ specs
-conda env create -f envs/environment.yaml
-
-# Activate
-conda activate spatial_immunotherapy_response
-```
-
-### Quick Start
+You can run the full pipeline locally or via the provided SLURM scripts.
 
 ```bash
-# 1. Download data
-
-# 2. Run analysis (if Makefile present)
-make all
+# To run via SLURM
+cd slurm
+sbatch 01_convert_data.sh
+sbatch 02_preprocess_integrate.sh
+sbatch 03a_response_tme.sh
+sbatch 03b_spatial_biomarkers.sh
+sbatch 03c_bulk_deconv.sh
+sbatch 04_validation.sh
+sbatch 05_complementary.sh
 ```
 
-## Contributing
+## Figures and Tables
 
-Contributions are welcome! Please:
+All generated outputs are grouped by their corresponding steps inside `out/`:
+- `out/01_preprocessing/`
+- `out/02a_response_tme/`
+- `out/02c_bulk_deconvolution/`
+- `out/03_validation/`
+- `out/04_complementary/`
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/your-feature`)
-3. Commit changes (`git commit -am 'Add feature'`)
-4. Push to the branch (`git push origin feature/your-feature`)
-5. Open a Pull Request
-
-## Citation
-
-If you use this work, please cite:
-
-```bibtex
-@article{sadeghi2026spatial_immunotherapy_response,
-  title={Spatial Biomarkers of Immunotherapy Response in HCC},
-  author={Sadeghi, Iman},
-  year={2026},
-  note={Manuscript in preparation}
-}
-```
+Inside each, check the `figures/` and `tables/` directories for detailed results (PNG/PDF, CSV).
 
 ## License
 
 This project is licensed under the MIT License — see [LICENSE](LICENSE) for details.
-
-## Contact
-
-- **Iman Sadeghi** — [GitHub](https://github.com/isadeghi87)

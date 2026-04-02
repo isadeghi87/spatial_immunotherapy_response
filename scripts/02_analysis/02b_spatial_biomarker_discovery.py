@@ -448,6 +448,27 @@ def main():
                 stats_df.to_csv(TAB / "pseudobulk_group_comparison.csv", index=False)
                 print(f"\n  Group comparison stats saved ({len(stats_df)} tests)")
 
+            # ------------- ADD UMAP / PCA ---------------
+            print("\n[UMAP] Generating Pseudo-Bulk Sample Embeddings...")
+            if len(combined) >= 4:
+                sc.pp.pca(combined, n_comps=min(15, len(combined)-1))
+                sc.pp.neighbors(combined, use_rep="X_pca", n_neighbors=min(15, len(combined)-1))
+                sc.tl.umap(combined)
+                
+                fig, axes = plt.subplots(1, 2, figsize=(11, 5))
+                sc.pl.pca(combined, color="group", size=200, ax=axes[0], show=False)
+                axes[0].set_title("A. PCA by Group", fontweight="bold")
+                
+                sc.pl.umap(combined, color="group", size=200, ax=axes[1], show=False)
+                axes[1].set_title("B. UMAP by Group", fontweight="bold")
+                
+                plt.suptitle("Sample Embeddings: GSE173905 Pseudo-Bulk", fontweight="bold", fontsize=12)
+                plt.tight_layout()
+                for ext in ["png", "pdf"]:
+                    plt.savefig(FIG / f"02b_pseudobulk_embeddings.{ext}", dpi=200, bbox_inches="tight")
+                plt.close()
+            # --------------------------------------------
+
         # Save scored pseudo-bulk data
         combined.write(TAB / "GSE173905_pseudobulk_scored.h5ad")
         print(f"  Scored pseudo-bulk saved to {TAB / 'GSE173905_pseudobulk_scored.h5ad'}")

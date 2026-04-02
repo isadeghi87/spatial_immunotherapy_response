@@ -326,3 +326,20 @@ MIT License — see [LICENSE](LICENSE).
 ## Contact
 
 **Iman Sadeghi** — [GitHub](https://github.com/isadeghi87)
+
+
+## Summary of Findings & Future Directions
+
+### Current Findings
+
+1. **Integrated TME Atlas Response Maps**: We successfully harmonized ~970k cells across major HCC immunotherapy cohorts. Our cell type abundance tests and DEG analysis revealed that Responders exhibit distinct T cell state shifts (e.g., increased cytotoxicity and late exhaustion markers paired paradoxically with high activation), while Non-Responders lean towards progenitor CD8 and M1/M2 macrophage dominancies.
+2. **Spatial & Pseudo-bulk Vulnerabilities**: Analysis of the spatial/pseudo-bulk data (GSE173905) mapped key IO signature scores (T cell exhaustion, Treg signatures) to distinct clinical trajectories like *Early Recurrence* vs *Recurrence Sensitive*. 
+3. **CIBERSORTx Deconvolution Setup**: A robust high-variance reference signature matrix (15,853 genes $\times$ 60 distinct immune/stromal subsets) was successfully generated, allowing us to deconvolute larger trial bulk RNA-seq cohorts.
+
+### Missing Elements & Next Steps
+
+Based on the pipeline outputs and biological context, several areas need expansion:
+- **True Spatial Transcriptomics (Visium)**: Currently, the spatial module (02b) leans heavily on pseudo-bulk data. To fully resolve immune architecture (e.g., tertiary lymphoid structures, tumor-stroma boundaries), integration of true Visium spots with cell-type deconvolution (e.g., Cell2location or Tangram) is required.
+- **Bulk Cohort Validation**: The CIBERSORTx signature reference is generated, but we need to run the actual trial datasets (e.g., IMbrave150, CheckMate-459) through deconvolution to validate our spatial/single-cell R vs NR biomarkers in large, independent bulk RNA-seq data.
+- **TCR/Clonality Metrics**: 04_complementary script computes diversity, but without robust matched scTCR-seq metadata integration, these are currently inferred metrics. Integrating accurate paired V(D)J sequencing data would firmly establish clonotype expansion in responders.
+- **Cell-Cell Communication**: A dedicated tool like CellPhoneDB or CellChat should be deployed to move beyond simple Ligand-Receptor pair subsetting, specifically looking at how mregDCs orchestrate CD8+ T cell exhaustion spatially.

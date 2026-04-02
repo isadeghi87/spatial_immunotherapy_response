@@ -827,7 +827,7 @@ def summary_figure(adata, pw_df, lr_df):
     # Panel C: Top pathways
     ax = axes[0, 2]
     if pw_df is not None and len(pw_df) > 0:
-        top_pw = pw_df.nlargest(8, "effect").append(pw_df.nsmallest(4, "effect")).sort_values("effect")
+        top_pw = pd.concat([pw_df.nlargest(8, "effect"), pw_df.nsmallest(4, "effect")]).sort_values("effect")
         colors_pw = ["#2ecc71" if e > 0 else "#e74c3c" for e in top_pw["effect"]]
         ax.barh(range(len(top_pw)), top_pw["effect"], color=colors_pw, height=0.5)
         ax.set_yticks(range(len(top_pw)))

@@ -210,6 +210,36 @@ def plot_deconvolution_results(deconv_df, sample_source="IMbrave150"):
         plt.savefig(FIG / f"02c_fraction_correlations_{sample_source}.{ext}", dpi=200, bbox_inches="tight")
     plt.close()
 
+    # Fig 4: PCA/UMAP of deconvolved sample fractions
+    print(f"  Generating sample UMAP based on fractions for {sample_source}...")
+    import anndata as ad
+    import scanpy as sc
+    adata_bulk = ad.AnnData(X=deconv_df[cell_type_cols].values, obs=pd.DataFrame(index=deconv_df.index))
+    if "inferred_immunotype" in deconv_df.columns:
+        adata_bulk.obs["inferred_immunotype"] = deconv_df["inferred_immunotype"].values
+        # Ensure it is categorical for plotting styling
+        adata_bulk.obs["inferred_immunotype"] = adata_bulk.obs["inferred_immunotype"].astype("category")
+    
+    # Needs at least 3 samples to do PCA easily
+    if len(adata_bulk) >= 4:
+        sc.pp.pca(adata_bulk, n_comps=min(15, len(adata_bulk)-1))
+        sc.pp.neighbors(adata_bulk, use_rep="X_pca", n_neighbors=min(15, len(adata_bulk)-1))
+        sc.tl.umap(adata_bulk)
+        
+        fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+        if "inferred_immunotype" in adata_bulk.obs.columns:
+            sc.pl.umap(adata_bulk, color="inferred_immunotype", ax=axes[0], show=False, title=f"UMAP: Immunotype")
+        else:
+            axes[0].set_title("UMAP Blank")
+            
+        sc.pl.pca(adata_bulk, color="inferred_immunotype" if "inferred_immunotype" in adata_bulk.obs.columns else None, ax=axes[1], show=False, title=f"PCA by Immunotype")
+        
+        plt.suptitle(f"Sample Embedding — {sample_source}", fontweight="bold", fontsize=13)
+        plt.tight_layout()
+        for ext in ["png", "pdf"]:
+            plt.savefig(FIG / f"02c_sample_embedding_{sample_source}.{ext}", dpi=200, bbox_inches="tight")
+        plt.close()
+
 
 def load_trial_bulk(trial_name):
     """Load bulk RNA-seq count matrix for a trial."""

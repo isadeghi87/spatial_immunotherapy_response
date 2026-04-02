@@ -145,15 +145,15 @@ def cell_abundance_test(adata):
     io_cells = adata[adata.obs["response"].isin(["Responder", "Non-Responder"])].copy()
 
     # Patient-level composition
-    patient_comp = io_cells.obs.groupby(["patient_ID", "response", "cell_type"]).size().reset_index(name="count")
-    patient_total = patient_comp.groupby(["patient_ID", "response"])["count"].transform("sum")
-    patient_comp["fraction"] = patient_comp["count"] / patient_total
+    count_df = io_cells.obs.groupby(["patient_ID", "cell_type"], observed=True).size().unstack(fill_value=0)
+    frac_df = count_df.div(count_df.sum(axis=1), axis=0)
+    resp_map = io_cells.obs.groupby("patient_ID", observed=True)["response"].first()
+    frac_df["response"] = frac_df.index.map(resp_map).values
 
     results = []
-    for ct in sorted(patient_comp["cell_type"].unique()):
-        ct_data = patient_comp[patient_comp["cell_type"] == ct]
-        r_fracs = ct_data[ct_data["response"] == "Responder"]["fraction"].values
-        nr_fracs = ct_data[ct_data["response"] == "Non-Responder"]["fraction"].values
+    for ct in count_df.columns:
+        r_fracs = frac_df.loc[frac_df["response"] == "Responder", ct].dropna().values
+        nr_fracs = frac_df.loc[frac_df["response"] == "Non-Responder", ct].dropna().values
         if len(r_fracs) >= 3 and len(nr_fracs) >= 3:
             stat, pval = mannwhitneyu(r_fracs, nr_fracs, alternative="two-sided")
             results.append({

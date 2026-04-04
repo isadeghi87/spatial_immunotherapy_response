@@ -348,5 +348,6 @@ Based on recent analysis expansions, the pipeline now fully incorporates these c
 The fully referenced **Materials and Methods** for this project, suitable for manuscript inclusion (*Nature Cancer* submission draft), are available in the `docs/` directory:
 - [Materials and Methods (Markdown)](docs/materials_and_methods.md)
 - [Materials and Methods (Word / DOCX)](docs/materials_and_methods.docx)
+- [Results and Discussion (Word / DOCX)](docs/manuscript_results_discussion_nature_cancer.docx)
 
 These documents detail the study cohorts, scRNA-seq preprocessing, TME characterization, bulk RNA-seq deconvolution, and advanced T-cell trajectory, spatial, and regulatory network analyses used throughout these scripts.

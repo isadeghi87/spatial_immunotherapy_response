@@ -19,6 +19,9 @@ DOCX_PATH = DOCS_DIR / "manuscript_results_discussion_nature_cancer.docx"
 
 BODY_FONT = "Arial"
 HEADER_FONT = "Arial"
+TITLE_FONT_SIZE = 48
+PANEL_FONT_SIZE = 34
+LABEL_FONT_SIZE = 30
 
 
 RESULTS_SECTIONS = [
@@ -198,7 +201,7 @@ TABLES = [
             ["Signature biology", "T-cell activation", "Elevated in responders", "Therapeutic benefit arises in already engaged immune ecosystems"],
             ["Signature biology", "Terminal exhaustion", "Elevated in responders", "Exhaustion acts as a marker of prior antigen exposure rather than simple failure"],
             ["Signature biology", "Progenitor CD8 program", "Reduced in responders", "Non-responders retain a less mature antitumor T-cell state"],
-            ["Myeloid context", "M1 or M2 macrophage features", "Higher in non-responders", "Macrophage polarization accompanies ineffective immune control"],
+            ["Myeloid context", "Macrophage polarization signatures", "Repository summaries note macrophage-associated programs among non-responder features", "Myeloid remodeling accompanies ineffective immune control and should be interpreted with polarization-state context"],
             ["Robustness", "Bootstrap stability", "Non-overlapping 95% CIs across 50 iterations for top signatures", "Leading signals are not driven by a few outlier patients"],
         ],
     },
@@ -264,9 +267,9 @@ def make_composite(spec: dict) -> Path:
     height = margin * 2 + title_h + rows * (cell_h + label_h) + (rows - 1) * gap
     canvas = Image.new("RGB", (width, height), "white")
     draw = ImageDraw.Draw(canvas)
-    title_font = ImageFont.load_default(size=48)
-    panel_font = ImageFont.load_default(size=34)
-    label_font = ImageFont.load_default(size=30)
+    title_font = ImageFont.load_default(size=TITLE_FONT_SIZE)
+    panel_font = ImageFont.load_default(size=PANEL_FONT_SIZE)
+    label_font = ImageFont.load_default(size=LABEL_FONT_SIZE)
 
     draw.text((margin, 20), f"Figure {spec['number']}. {spec['title']}", fill="black", font=title_font)
 

@@ -9,6 +9,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt
+from docx.table import _Cell
 from PIL import Image, ImageDraw, ImageFont
 
 
@@ -225,7 +226,15 @@ TABLES = [
 ]
 
 
-def set_cell_shading(cell, fill: str) -> None:
+def load_font(size: int) -> ImageFont.ImageFont | ImageFont.FreeTypeFont:
+    try:
+        return ImageFont.truetype("DejaVuSans.ttf", size=size)
+    except OSError:
+        return ImageFont.load_default()
+
+
+def set_cell_shading(cell: _Cell, fill: str) -> None:
+    """Apply a solid background fill color to a python-docx table cell."""
     tc_pr = cell._tc.get_or_add_tcPr()
     shd = OxmlElement("w:shd")
     shd.set(qn("w:fill"), fill)
@@ -245,6 +254,7 @@ def set_default_font(document: Document) -> None:
 
 
 def fit_image(image: Image.Image, box_width: int, box_height: int) -> Image.Image:
+    """Resize an image to fit within a panel and center it on a white background."""
     copy = image.convert("RGB")
     copy.thumbnail((box_width, box_height))
     canvas = Image.new("RGB", (box_width, box_height), "white")
@@ -255,6 +265,7 @@ def fit_image(image: Image.Image, box_width: int, box_height: int) -> Image.Imag
 
 
 def make_composite(spec: dict) -> Path:
+    """Build a labeled composite figure from a spec with number, title, layout and panels."""
     FIGURE_DIR.mkdir(parents=True, exist_ok=True)
     cols, rows = spec["layout"]
     panel_width, panel_height = 1700, 1180
@@ -267,9 +278,9 @@ def make_composite(spec: dict) -> Path:
     height = margin * 2 + title_h + rows * (panel_height + label_h) + (rows - 1) * gap
     canvas = Image.new("RGB", (width, height), "white")
     draw = ImageDraw.Draw(canvas)
-    title_font = ImageFont.load_default(size=TITLE_FONT_SIZE)
-    panel_font = ImageFont.load_default(size=PANEL_FONT_SIZE)
-    label_font = ImageFont.load_default(size=LABEL_FONT_SIZE)
+    title_font = load_font(TITLE_FONT_SIZE)
+    panel_font = load_font(PANEL_FONT_SIZE)
+    label_font = load_font(LABEL_FONT_SIZE)
 
     draw.text((margin, 20), f"Figure {spec['number']}. {spec['title']}", fill="black", font=title_font)
 

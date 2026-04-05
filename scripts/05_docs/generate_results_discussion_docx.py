@@ -257,14 +257,14 @@ def fit_image(image: Image.Image, box_width: int, box_height: int) -> Image.Imag
 def make_composite(spec: dict) -> Path:
     FIGURE_DIR.mkdir(parents=True, exist_ok=True)
     cols, rows = spec["layout"]
-    cell_w, cell_h = 1700, 1180
+    panel_width, panel_height = 1700, 1180
     margin = 80
     gap = 40
     title_h = 120
     label_h = 90
 
-    width = margin * 2 + cols * cell_w + (cols - 1) * gap
-    height = margin * 2 + title_h + rows * (cell_h + label_h) + (rows - 1) * gap
+    width = margin * 2 + cols * panel_width + (cols - 1) * gap
+    height = margin * 2 + title_h + rows * (panel_height + label_h) + (rows - 1) * gap
     canvas = Image.new("RGB", (width, height), "white")
     draw = ImageDraw.Draw(canvas)
     title_font = ImageFont.load_default(size=TITLE_FONT_SIZE)
@@ -275,17 +275,17 @@ def make_composite(spec: dict) -> Path:
 
     for idx, panel in enumerate(spec["panels"]):
         letter, label, rel_path = panel
-        row = idx // cols
-        col = idx % cols
-        x0 = margin + col * (cell_w + gap)
-        y0 = margin + title_h + row * (cell_h + label_h + gap)
+        panel_row = idx // cols
+        panel_col = idx % cols
+        x0 = margin + panel_col * (panel_width + gap)
+        y0 = margin + title_h + panel_row * (panel_height + label_h + gap)
         image_path = REPO_ROOT / rel_path
         image = Image.open(image_path)
-        fitted = fit_image(image, cell_w, cell_h)
+        fitted = fit_image(image, panel_width, panel_height)
         canvas.paste(fitted, (x0, y0))
         draw.rectangle((x0, y0, x0 + 86, y0 + 60), fill="black")
         draw.text((x0 + 24, y0 + 10), letter, fill="white", font=panel_font)
-        draw.text((x0, y0 + cell_h + 16), label, fill="black", font=label_font)
+        draw.text((x0, y0 + panel_height + 16), label, fill="black", font=label_font)
 
     output_path = FIGURE_DIR / spec["filename"]
     canvas.save(output_path, dpi=(300, 300))

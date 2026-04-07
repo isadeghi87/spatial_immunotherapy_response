@@ -360,3 +360,6 @@ The fully referenced **Materials and Methods** for this project, suitable for ma
 - [Materials and Methods (Word / DOCX)](docs/materials_and_methods.docx)
 
 These documents detail the study cohorts, scRNA-seq preprocessing, TME characterization, bulk RNA-seq deconvolution, and advanced T-cell trajectory, spatial, and regulatory network analyses used throughout these scripts.
+
+A repository-audited **Results and Discussion** draft, written conservatively around the committed outputs and accompanied by composite figures, is also available in the `docs/` directory:
+- [Results and Discussion (Markdown)](docs/results_discussion_nature_immunology.md)

@@ -118,7 +118,7 @@ def render_image_panel(svg: list[str], panel: ImagePanel, x: int, y: int, w: int
     draw_x = inner_x + (inner_w - draw_w) / 2
     draw_y = inner_y + (inner_h - draw_h) / 2
 
-    href = escape(Path("../../") / Path(panel.rel_path))
+    href = escape(str(Path("../../") / Path(panel.rel_path)))
     svg.append(
         f'<image href="{href}" x="{draw_x:.1f}" y="{draw_y:.1f}" '
         f'width="{draw_w:.1f}" height="{draw_h:.1f}" preserveAspectRatio="xMidYMid meet"/>'

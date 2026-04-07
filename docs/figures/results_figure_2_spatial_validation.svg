@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1628" height="1074" viewBox="0 0 1628 1074">
+<rect width="100%" height="100%" fill="#eef4fb"/>
+<text x="40" y="54" font-size="34" font-weight="700" fill="#102a43" font-family="Arial, Helvetica, sans-serif">Figure 2 | Spatial, pseudo-bulk and translational bridge</text>
+<text x="40" y="88" font-size="18" fill="#486581" font-family="Arial, Helvetica, sans-serif">Composite figure assembled from repository-committed outputs.</text>
+<g transform="translate(40,110)">
+<rect x="0" y="0" width="500" height="410" rx="18" ry="18" fill="#ffffff" stroke="#d6dee8" stroke-width="2"/>
+<text x="24" y="42" font-size="30" font-weight="700" fill="#102a43" font-family="Arial, Helvetica, sans-serif">A</text>
+<text x="78" y="42" font-size="23" font-weight="600" fill="#102a43" font-family="Arial, Helvetica, sans-serif">Pseudo-bulk IO signature landscape</text>
+<image href="../../out/02b_spatial_biomarkers/figures/02b_pseudobulk_io_signatures.png" x="18.0" y="139.4" width="464.0" height="173.3" preserveAspectRatio="xMidYMid meet"/>
+</g>
+<g transform="translate(564,110)">
+<rect x="0" y="0" width="500" height="410" rx="18" ry="18" fill="#ffffff" stroke="#d6dee8" stroke-width="2"/>
+<text x="24" y="42" font-size="30" font-weight="700" fill="#102a43" font-family="Arial, Helvetica, sans-serif">B</text>
+<text x="78" y="42" font-size="23" font-weight="600" fill="#102a43" font-family="Arial, Helvetica, sans-serif">Pseudo-bulk sample embeddings</text>
+<image href="../../out/02b_spatial_biomarkers/figures/02b_pseudobulk_embeddings.png" x="18.0" y="120.6" width="464.0" height="210.7" preserveAspectRatio="xMidYMid meet"/>
+</g>
+<g transform="translate(1088,110)">
+<rect x="0" y="0" width="500" height="410" rx="18" ry="18" fill="#ffffff" stroke="#d6dee8" stroke-width="2"/>
+<text x="24" y="42" font-size="30" font-weight="700" fill="#102a43" font-family="Arial, Helvetica, sans-serif">C</text>
+<text x="78" y="42" font-size="23" font-weight="600" fill="#102a43" font-family="Arial, Helvetica, sans-serif">scRNA-seq reference heatmap</text>
+<image href="../../out/02c_bulk_deconvolution/figures/02c_reference_heatmap.png" x="18.0" y="84.6" width="464.0" height="282.9" preserveAspectRatio="xMidYMid meet"/>
+</g>
+<g transform="translate(40,544)">
+<rect x="0" y="0" width="500" height="410" rx="18" ry="18" fill="#ffffff" stroke="#d6dee8" stroke-width="2"/>
+<text x="24" y="42" font-size="30" font-weight="700" fill="#102a43" font-family="Arial, Helvetica, sans-serif">D</text>
+<text x="78" y="42" font-size="23" font-weight="600" fill="#102a43" font-family="Arial, Helvetica, sans-serif">Reference-state correlation structure</text>
+<image href="../../out/02c_bulk_deconvolution/figures/02c_reference_correlation.png" x="72.4" y="60.0" width="355.3" height="332.0" preserveAspectRatio="xMidYMid meet"/>
+</g>
+<g transform="translate(564,544)">
+<rect x="0" y="0" width="500" height="410" rx="18" ry="18" fill="#ffffff" stroke="#d6dee8" stroke-width="2"/>
+<text x="24" y="42" font-size="30" font-weight="700" fill="#102a43" font-family="Arial, Helvetica, sans-serif">E</text>
+<text x="78" y="42" font-size="23" font-weight="600" fill="#102a43" font-family="Arial, Helvetica, sans-serif">Internal LASSO response prediction</text>
+<image href="../../out/03_validation/figures/03_roc_lasso.png" x="18.0" y="127.4" width="464.0" height="197.2" preserveAspectRatio="xMidYMid meet"/>
+</g>
+<g transform="translate(1088,544)">
+<rect x="0" y="0" width="500" height="410" rx="18" ry="18" fill="#ffffff" stroke="#d6dee8" stroke-width="2"/>
+<text x="24" y="42" font-size="30" font-weight="700" fill="#102a43" font-family="Arial, Helvetica, sans-serif">F</text>
+<text x="78" y="42" font-size="23" font-weight="600" fill="#102a43" font-family="Arial, Helvetica, sans-serif">Random-forest feature ranking</text>
+<image href="../../out/03_validation/figures/03_rf_importance.png" x="28.1" y="60.0" width="443.9" height="332.0" preserveAspectRatio="xMidYMid meet"/>
+</g>
+<text x="40" y="1046" font-size="17" fill="#486581" font-family="Arial, Helvetica, sans-serif">Combines empirical pseudo-bulk figures, reference construction, and internal validation outputs.</text>
+</svg>

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1628" height="1074" viewBox="0 0 1628 1074">
+<rect width="100%" height="100%" fill="#eef4fb"/>
+<text x="40" y="54" font-size="34" font-weight="700" fill="#102a43" font-family="Arial, Helvetica, sans-serif">Figure 3 | Consistency, robustness and provenance boundaries</text>
+<text x="40" y="88" font-size="18" fill="#486581" font-family="Arial, Helvetica, sans-serif">Composite figure assembled from repository-committed outputs.</text>
+<g transform="translate(40,110)">
+<rect x="0" y="0" width="500" height="410" rx="18" ry="18" fill="#ffffff" stroke="#d6dee8" stroke-width="2"/>
+<text x="24" y="42" font-size="30" font-weight="700" fill="#102a43" font-family="Arial, Helvetica, sans-serif">A</text>
+<text x="78" y="42" font-size="23" font-weight="600" fill="#102a43" font-family="Arial, Helvetica, sans-serif">Bootstrap stability of key effects</text>
+<image href="../../out/03_validation/figures/03_bootstrap_ci.png" x="18.0" y="87.6" width="464.0" height="276.8" preserveAspectRatio="xMidYMid meet"/>
+</g>
+<g transform="translate(564,110)">
+<rect x="0" y="0" width="500" height="410" rx="18" ry="18" fill="#ffffff" stroke="#d6dee8" stroke-width="2"/>
+<text x="24" y="42" font-size="30" font-weight="700" fill="#102a43" font-family="Arial, Helvetica, sans-serif">B</text>
+<text x="78" y="42" font-size="23" font-weight="600" fill="#102a43" font-family="Arial, Helvetica, sans-serif">Signature correlation network</text>
+<image href="../../out/03_validation/figures/03_signature_correlation.png" x="71.0" y="60.0" width="358.0" height="332.0" preserveAspectRatio="xMidYMid meet"/>
+</g>
+<g transform="translate(1088,110)">
+<rect x="0" y="0" width="500" height="410" rx="18" ry="18" fill="#ffffff" stroke="#d6dee8" stroke-width="2"/>
+<text x="24" y="42" font-size="30" font-weight="700" fill="#102a43" font-family="Arial, Helvetica, sans-serif">C</text>
+<text x="78" y="42" font-size="23" font-weight="600" fill="#102a43" font-family="Arial, Helvetica, sans-serif">Responder-upregulated pathway structure</text>
+<image href="../../out/03_validation/figures/03_pathway_enrichment.png" x="18.0" y="72.0" width="464.0" height="308.0" preserveAspectRatio="xMidYMid meet"/>
+</g>
+<g transform="translate(40,544)">
+<rect x="0" y="0" width="500" height="410" rx="18" ry="18" fill="#f8fbff" stroke="#d6dee8" stroke-width="2"/>
+<text x="24" y="42" font-size="30" font-weight="700" fill="#102a43" font-family="Arial, Helvetica, sans-serif">D</text>
+<text x="78" y="42" font-size="23" font-weight="600" fill="#102a43" font-family="Arial, Helvetica, sans-serif">Cross-module consistency</text>
+<text x="28" y="88" font-size="20" font-weight="400" fill="#334e68" font-family="Arial, Helvetica, sans-serif">
+<tspan x="28" dy="0">• Atlas, pseudo-bulk and internal modelling</tspan>
+<tspan x="28" dy="28">all support an immune-active responder</tspan>
+<tspan x="28" dy="28">state.</tspan>
+</text>
+<text x="28" y="180" font-size="20" font-weight="400" fill="#334e68" font-family="Arial, Helvetica, sans-serif">
+<tspan x="28" dy="0">• Activation, IFN-related signalling and</tspan>
+<tspan x="28" dy="28">antigen presentation recur across multiple</tspan>
+<tspan x="28" dy="28">panels.</tspan>
+</text>
+<text x="28" y="272" font-size="20" font-weight="400" fill="#334e68" font-family="Arial, Helvetica, sans-serif">
+<tspan x="28" dy="0">• Bootstrap resampling preserves the</tspan>
+<tspan x="28" dy="28">direction of the dominant signature effects.</tspan>
+</text>
+</g>
+<g transform="translate(564,544)">
+<rect x="0" y="0" width="500" height="410" rx="18" ry="18" fill="#f8fbff" stroke="#d6dee8" stroke-width="2"/>
+<text x="24" y="42" font-size="30" font-weight="700" fill="#102a43" font-family="Arial, Helvetica, sans-serif">E</text>
+<text x="78" y="42" font-size="23" font-weight="600" fill="#102a43" font-family="Arial, Helvetica, sans-serif">Evidence that remains incomplete</text>
+<text x="28" y="88" font-size="20" font-weight="400" fill="#334e68" font-family="Arial, Helvetica, sans-serif">
+<tspan x="28" dy="0">• Trial-level bulk count matrices and</tspan>
+<tspan x="28" dy="28">deconvolution outputs are not versioned in</tspan>
+<tspan x="28" dy="28">the repository snapshot.</tspan>
+</text>
+<text x="28" y="180" font-size="20" font-weight="400" fill="#334e68" font-family="Arial, Helvetica, sans-serif">
+<tspan x="28" dy="0">• The committed figures do not include the</tspan>
+<tspan x="28" dy="28">numerical tables needed to report exact</tspan>
+<tspan x="28" dy="28">effect sizes in this draft.</tspan>
+</text>
+<text x="28" y="272" font-size="20" font-weight="400" fill="#334e68" font-family="Arial, Helvetica, sans-serif">
+<tspan x="28" dy="0">• Clinical survival validation is present</tspan>
+<tspan x="28" dy="28">only as a simulated workflow and should not</tspan>
+<tspan x="28" dy="28">be cited as evidence.</tspan>
+</text>
+</g>
+<g transform="translate(1088,544)">
+<rect x="0" y="0" width="500" height="410" rx="18" ry="18" fill="#f8fbff" stroke="#d6dee8" stroke-width="2"/>
+<text x="24" y="42" font-size="30" font-weight="700" fill="#102a43" font-family="Arial, Helvetica, sans-serif">F</text>
+<text x="78" y="42" font-size="23" font-weight="600" fill="#102a43" font-family="Arial, Helvetica, sans-serif">Illustrative modules excluded from claims</text>
+<text x="28" y="88" font-size="20" font-weight="400" fill="#334e68" font-family="Arial, Helvetica, sans-serif">
+<tspan x="28" dy="0">• Synthetic or placeholder analyses include</tspan>
+<tspan x="28" dy="28">02e-02h, 03b and the 04_complementary suite.</tspan>
+</text>
+<text x="28" y="152" font-size="20" font-weight="400" fill="#334e68" font-family="Arial, Helvetica, sans-serif">
+<tspan x="28" dy="0">• These outputs are useful for hypothesis</tspan>
+<tspan x="28" dy="28">framing and figure design, but not for</tspan>
+<tspan x="28" dy="28">manuscript-grade inference.</tspan>
+</text>
+<text x="28" y="244" font-size="20" font-weight="400" fill="#334e68" font-family="Arial, Helvetica, sans-serif">
+<tspan x="28" dy="0">• Final publication claims should be limited</tspan>
+<tspan x="28" dy="28">to modules with committed, data-backed</tspan>
+<tspan x="28" dy="28">provenance.</tspan>
+</text>
+</g>
+<text x="40" y="1046" font-size="17" fill="#486581" font-family="Arial, Helvetica, sans-serif">Lower row is text-only by design so the evidence boundary is explicit in the figure itself.</text>
+</svg>

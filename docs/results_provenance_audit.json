@@ -1,0 +1,38 @@
+{
+  "empirical_modules": [
+    {
+      "module": "02a_response_tme_characterization.py",
+      "status": "empirical_when_source_data_are_present",
+      "notes": "Uses integrated_io_atlas.h5ad and GSE206325 metadata to derive abundance, DEG, and signature comparisons."
+    },
+    {
+      "module": "02b_spatial_biomarker_discovery.py",
+      "status": "mixed_empirical",
+      "notes": "Pseudo-bulk GSE173905 logic is real-data driven; optional HCC_omics Visium branch depends on external files not committed here."
+    },
+    {
+      "module": "02c_bulk_deconvolution.py",
+      "status": "partially_empirical",
+      "notes": "Reference matrix generation is empirical; actual trial deconvolution requires missing bulk matrices."
+    },
+    {
+      "module": "03_validation_downstream.py",
+      "status": "empirical_when_source_data_are_present",
+      "notes": "Internal validation, bootstrap, and pathway analyses are built from the integrated atlas and derived tables."
+    }
+  ],
+  "illustrative_modules": [
+    "02e_spatial_topology.py",
+    "02f_regulon_tf_networks.py",
+    "02g_infercnv.py",
+    "02h_cnv_tme_integration.py",
+    "03b_clinical_survival.py",
+    "04_complementary/04b_comprehensive_discoveries.py",
+    "04_complementary/04c_tcell_trajectories.py",
+    "04_complementary/04d_cell_communication.py",
+    "04_complementary/04e_tcr_dynamics.py",
+    "04_complementary/04f_metabolic_reprogramming.py",
+    "04_complementary/04g_tls_spatial_hubs.py",
+    "04_complementary/04h_spatial_high_contrast_maps.py"
+  ]
+}

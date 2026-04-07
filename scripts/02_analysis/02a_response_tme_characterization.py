@@ -338,8 +338,8 @@ def main():
     ax.scatter(adata.obsm["X_umap"][~mask_tumor, 0], adata.obsm["X_umap"][~mask_tumor, 1],
                s=0.1, alpha=0.05, c="gray", rasterized=True, label="Other")
     ax.scatter(adata.obsm["X_umap"][mask_tumor, 0], adata.obsm["X_umap"][mask_tumor, 1],
-               s=0.3, alpha=0.2, c="#e74c3c", rasterized=True, label="Tumor")
-    ax.legend(fontsize=8, markerscale=10); ax.set_title("B. Tumor Cells", fontweight="bold")
+               s=0.3, alpha=0.2, c="#9b59b6", rasterized=True, label="Tumor Tissue")
+    ax.legend(fontsize=8, markerscale=10); ax.set_title("B. Source Tissue", fontweight="bold")
     ax.set_xlabel("UMAP 1"); ax.set_ylabel("UMAP 2")
 
     ax = axes[2]
@@ -523,6 +523,210 @@ def main():
         for ext in ["png", "pdf"]:
             plt.savefig(FIG / f"02a_signature_radar.{ext}", dpi=200, bbox_inches="tight")
         plt.close()
+
+    # ═══════════════════════════════════════════════════════════════
+    # Fig 9: Enhanced cell-type annotation UMAP — Seaborn style
+    # ═══════════════════════════════════════════════════════════════
+    print("  [Fig 9] Cell-type annotation UMAP (Seaborn palette)...")
+    from matplotlib.patches import FancyBboxPatch
+    from scipy.sparse import issparse as _issparse
+
+    ct_palette_02a = {
+        # CD8 T cells (warm reds)
+        "CD8_T": "#D32F2F", "CD8_Dysfunctional-terminal": "#B71C1C",
+        "CD8_Dysfunctional-progenitor": "#C62828", "CD8_Dysfunctional-Proliferating": "#E53935",
+        "CD8_Dysfunctional-effector": "#EF5350", "CD8_Effector": "#F44336",
+        "CD8_Memory": "#FF5252", "CD8_Cytotoxic": "#FF1744",
+        # CD4 T cells (greens)
+        "CD4_T": "#388E3C", "CD4_Tfh-like": "#43A047",
+        "CD4_Th1 GZMK": "#66BB6A", "CD4_Th1/Th17": "#81C784",
+        "CD4_Effector-Memory": "#4CAF50", "CD4_Memory": "#2E7D32",
+        # Tregs (amber)
+        "Treg": "#F9A825", "Treg_Treg": "#FBC02D",
+        # NK (blues)
+        "NK": "#1565C0", # Unconventional T (teal)
+        "MAIT": "#00838F", "iNKT": "#00ACC1", "gdT": "#26C6DA",
+        "ILC": "#4DD0E1", "Naive_Naive": "#80DEEA",
+        # B / Plasma (oranges)
+        "B_cell": "#E65100", "B_Memory": "#EF6C00", "B_Naive": "#F57C00",
+        "B_Plasma": "#FB8C00", "Plasma": "#FF9800",
+        # Macrophages / Monocytes (purples)
+        "Macrophage": "#6A1B9A", "Macrophage_I": "#7B1FA2",
+        "Macrophage_II": "#8E24AA", "Macrophage_FCN1/CXCL9": "#9C27B0",
+        "Macrophage_FOLR2": "#AB47BC", "Macrophage_TREM2": "#BA68C8",
+        "Macrophage_Kupffer": "#CE93D8", "Macrophage_SPP1": "#7C4DFF",
+        "Monocyte_CD14": "#5E35B1", "Monocyte_CD14 SPP1": "#673AB7",
+        "Monocyte_CD16": "#7E57C2", "Monocyte_Intermediate": "#9575CD",
+        # DCs (pinks)
+        "mregDC": "#C2185B", "DC_mregDC": "#D81B60",
+        "cDC1": "#E91E63", "DC_cDC1": "#EC407A",
+        "cDC2": "#F06292", "DC_cDC2": "#F48FB1", "DC_pDC": "#F8BBD0",
+        # Stromal / Structural (earth + indigo)
+        "Hepatocyte": "#00695C", "Stromal_Hepatocytes": "#00897B",
+        "Endothelial": "#7986CB", "Stromal_Endothelial cells": "#9FA8DA",
+        "Fibroblast": "#8D6E63", "Stromal_HSC": "#A1887F",
+        "Tumor": "#37474F", "Mast": "#FF6F00",
+        # Other
+        "Proliferating_Proliferating": "#FFD600",
+        "Unknown": "#BDBDBD", "Unknown_Doublets": "#9E9E9E", "Unknown_Empty": "#E0E0E0",
+    }
+    with plt.style.context("seaborn-v0_8-whitegrid"):
+        fig, axes = plt.subplots(1, 2, figsize=(22, 9),
+                                 gridspec_kw={"width_ratios": [1.6, 1]})
+        ax = axes[0]
+        top_cts_umap = ct_counts.head(14).index.tolist()
+
+        # Background: all cells in light gray
+        ax.scatter(adata.obsm["X_umap"][:, 0], adata.obsm["X_umap"][:, 1],
+                   s=0.05, c="#eeeeee", alpha=0.2, rasterized=True)
+        # Overlay each cell type with jittered sizes for organic look
+        np.random.seed(42)
+        for ct in top_cts_umap:
+            mask_ct = (adata.obs["cell_type"] == ct).values
+            n_ct = mask_ct.sum()
+            if n_ct == 0:
+                continue
+            color = ct_palette_02a.get(ct, "#999999")
+            sizes = np.random.uniform(0.2, 1.0, size=n_ct)
+            ax.scatter(adata.obsm["X_umap"][mask_ct, 0],
+                       adata.obsm["X_umap"][mask_ct, 1],
+                       s=sizes, alpha=0.4, c=color,
+                       label=f"{ct} ({n_ct:,})", rasterized=True)
+        ax.legend(fontsize=7.5, markerscale=14, ncol=2, loc="upper left",
+                  frameon=True, fancybox=True, shadow=True, framealpha=0.9)
+        ax.set_title("Cell-Type Annotations", fontweight="bold", fontsize=14)
+        ax.set_xlabel("UMAP 1", fontsize=11)
+        ax.set_ylabel("UMAP 2", fontsize=11)
+
+        # Right panel: waffle-style proportional pie chart
+        ax_pie = axes[1]
+        ct_top_pie = ct_counts.head(12)
+        pie_colors = [ct_palette_02a.get(c, "#999") for c in ct_top_pie.index]
+        wedges, texts, autotexts = ax_pie.pie(
+            ct_top_pie.values, labels=None, colors=pie_colors,
+            autopct=lambda p: f"{p:.1f}%" if p > 2 else "",
+            startangle=140, pctdistance=0.8,
+            wedgeprops=dict(edgecolor="white", linewidth=1.5))
+        for at in autotexts:
+            at.set_fontsize(8)
+            at.set_fontweight("bold")
+        ax_pie.legend(ct_top_pie.index, fontsize=8, loc="center left",
+                      bbox_to_anchor=(0.95, 0.5), frameon=False)
+        ax_pie.set_title("Cell-Type Proportions", fontweight="bold", fontsize=13)
+
+        fig.suptitle(f"HCC IO Atlas — Cell-Type Map ({adata.n_obs:,} cells)",
+                     fontweight="bold", fontsize=15, y=1.01)
+        plt.tight_layout()
+        for ext in ["png", "pdf"]:
+            plt.savefig(FIG / f"02a_celltype_annotation_enhanced.{ext}",
+                        dpi=200, bbox_inches="tight")
+        plt.close()
+    print(f"    Saved {FIG / '02a_celltype_annotation_enhanced.png'}")
+
+    # ═══════════════════════════════════════════════════════════════
+    # Fig 10: Marker feature plots — viridis hexbin style
+    # ═══════════════════════════════════════════════════════════════
+    print("  [Fig 10] Per-cell-type marker feature plots (hexbin)...")
+
+    genes_avail = set(adata.raw.var_names) if adata.raw else set(adata.var_names)
+    _raw_idx = {g: i for i, g in enumerate(adata.raw.var_names)} if adata.raw else {}
+    _var_idx = {g: i for i, g in enumerate(adata.var_names)}
+
+    def _expr_vec(adata, gene):
+        """Return 1-D expression array for *gene*."""
+        if adata.raw and gene in _raw_idx:
+            x = adata.raw.X[:, _raw_idx[gene]]
+        elif gene in _var_idx:
+            x = adata.X[:, _var_idx[gene]]
+        else:
+            return None
+        if _issparse(x):
+            x = np.asarray(x.todense()).ravel()
+        else:
+            x = np.asarray(x).ravel()
+        return x
+
+    # Pick one representative marker per cell type
+    rep_markers_02a = {}
+    for ct, markers in CELL_TYPE_MARKERS.items():
+        for m in markers:
+            if m in genes_avail:
+                rep_markers_02a[ct] = m
+                break
+
+    n_markers = len(rep_markers_02a)
+    if n_markers > 0:
+        ncols_m = 4
+        nrows_m = (n_markers + ncols_m - 1) // ncols_m
+        fig, axes_m = plt.subplots(nrows_m, ncols_m,
+                                    figsize=(5.5 * ncols_m, 4.5 * nrows_m))
+        axes_m = np.atleast_2d(axes_m)
+        axf = axes_m.flatten()
+
+        colormaps = ["viridis", "inferno", "plasma", "cividis",
+                     "YlOrRd", "YlGnBu", "RdPu", "BuGn",
+                     "OrRd", "PuBuGn", "GnBu", "YlOrBr",
+                     "PuRd", "Blues"]
+
+        for i, (ct, gene) in enumerate(rep_markers_02a.items()):
+            ax = axf[i]
+            expr = _expr_vec(adata, gene)
+            if expr is None:
+                ax.set_visible(False)
+                continue
+
+            cmap_name = colormaps[i % len(colormaps)]
+            umap_xy = adata.obsm["X_umap"]
+
+            # Hexbin for a clean, publication-quality density look
+            hb = ax.hexbin(umap_xy[:, 0], umap_xy[:, 1], C=expr,
+                           gridsize=120, cmap=cmap_name, mincnt=1,
+                           reduce_C_function=np.mean, linewidths=0.0)
+            cb = plt.colorbar(hb, ax=ax, fraction=0.04, pad=0.02)
+            cb.ax.tick_params(labelsize=7)
+            cb.set_label("Expr", fontsize=8)
+            ax.set_title(f"{ct}\n{gene}", fontweight="bold", fontsize=10)
+            ax.set_xlabel("UMAP 1", fontsize=8)
+            ax.set_ylabel("UMAP 2", fontsize=8)
+            ax.tick_params(labelsize=7)
+            ax.spines["top"].set_visible(False)
+            ax.spines["right"].set_visible(False)
+
+        for j in range(i + 1, len(axf)):
+            axf[j].set_visible(False)
+
+        fig.suptitle("Cell-Type Marker Expression — Hexbin Feature Plots",
+                     fontweight="bold", fontsize=15, y=1.01)
+        plt.tight_layout()
+        for ext in ["png", "pdf"]:
+            fig.savefig(FIG / f"02a_marker_feature_hexbin.{ext}",
+                        dpi=200, bbox_inches="tight")
+        plt.close()
+        print(f"    Saved {FIG / '02a_marker_feature_hexbin.png'}")
+
+    # ═══════════════════════════════════════════════════════════════
+    # Fig 11: Marker dot plot — scanpy-style (bubble matrix)
+    # ═══════════════════════════════════════════════════════════════
+    print("  [Fig 11] Marker dot plot (bubble matrix)...")
+    all_marker_genes = []
+    for markers in CELL_TYPE_MARKERS.values():
+        for g in markers:
+            if g in genes_avail and g not in all_marker_genes:
+                all_marker_genes.append(g)
+
+    if len(all_marker_genes) >= 4 and "cell_type" in adata.obs.columns:
+        try:
+            fig_dp = sc.pl.dotplot(
+                adata, var_names=all_marker_genes[:30],
+                groupby="cell_type", standard_scale="var",
+                cmap="Reds", return_fig=True,
+            )
+            fig_dp.savefig(FIG / "02a_marker_dotplot.png", dpi=200, bbox_inches="tight")
+            fig_dp.savefig(FIG / "02a_marker_dotplot.pdf", bbox_inches="tight")
+            plt.close()
+            print(f"    Saved {FIG / '02a_marker_dotplot.png'}")
+        except Exception as e:
+            print(f"    [WARN] dotplot failed: {e}")
 
     # ── Save updated adata ─────────────────────────────────────────
     adata.write(PROC / "integrated_io_atlas.h5ad")

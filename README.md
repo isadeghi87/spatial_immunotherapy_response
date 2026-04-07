@@ -28,6 +28,16 @@
 
 ---
 
+
+
+## Recent Updates (April 2026)
+
+*   **Standardized Cell Type Annotations:** Cleaned up numerical prefixes and variation names across all immune subsets (converging variants into single categories like `NK` and `CD8-Memory`).
+*   **Major/Subtype UMAP Representations:** Added major and subtype-specific immune UMAPs isolating non-immune tissues to high-contrast grey (`#E0E0E0`) within the `regen_umap.py` script.
+*   **InferCNV Integration (`02g_infercnv.py`):** Added chromosomal copy number variation tracking using CD4-Memory and NK cells as references to identify and pinpoint malignant clones. Enhanced visualizations directly map horizontal genomic ranges (Chr 1-22) against malignant clone fractions.
+*   **Multi-Modal CNV/TME Integration (`02h_cnv_tme_integration.py`):** Generated an integration dashboard cross-correlating isolated tumor clones against spatial TME shifts, highlighting expression pathways and translating burden events (like HLA-loss) to explicit progression probabilities using Kaplan-Meier hazard modeling.
+*   **Trajectory Stream Dynamics (`04c_tcell_trajectories.py`):** Migrated T cell continuous trajectories to visualize topological progression using high-density vector arrows across the UMAP manifold and spline-interpolated (scipy.interpolate) pseudotime feature tracks.
+
 ## Repository Structure
 
 ```

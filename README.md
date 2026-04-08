@@ -37,6 +37,8 @@
 *   **InferCNV Integration (`02g_infercnv.py`):** Added chromosomal copy number variation tracking using CD4-Memory and NK cells as references to identify and pinpoint malignant clones. Enhanced visualizations directly map horizontal genomic ranges (Chr 1-22) against malignant clone fractions.
 *   **Multi-Modal CNV/TME Integration (`02h_cnv_tme_integration.py`):** Generated an integration dashboard cross-correlating isolated tumor clones against spatial TME shifts, highlighting expression pathways and translating burden events (like HLA-loss) to explicit progression probabilities using Kaplan-Meier hazard modeling.
 *   **Trajectory Stream Dynamics (`04c_tcell_trajectories.py`):** Migrated T cell continuous trajectories to visualize topological progression using high-density vector arrows across the UMAP manifold and spline-interpolated (scipy.interpolate) pseudotime feature tracks.
+*   **High-Contrast Spatial Hubs (`04h_spatial_high_contrast_maps.py`):** Added a new script calculating signature gene scores (Hypoxia, CD8 exhaustion, Macrophage M1/M2 polarization) and visualizing their structural gradients and topological distributions on the unified IO manifold.
+*   **Comprehensive Downstream Analytics (`scripts/04_complementary/`):** Streamlined and finalized modules for tracking TCR clonotype expansions (alluvial trajectories), identifying Cell-Cell communication networks via integrated CellPhoneDB logic, scoring Metabolic reprogrammings, and uncovering TLS spatial hubs across the dataset.
 
 ## Repository Structure
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=setup_env
-#SBATCH --partition=short
+#SBATCH --partition=long
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=16G
 #SBATCH --time=01:30:00

@@ -199,7 +199,7 @@ for candidate in ["cell_type", "cell_type_original", "leiden"]:
 if ct_col is None:
     print("  [WARN] No cell type column found — skipping annotation UMAP")
 else:
-    ct_series = obs[ct_col].fillna("Unknown")
+    ct_series = obs[ct_col].astype(str).fillna("Unknown")
     top_cts = ct_series.value_counts().head(14).index.tolist()
 
     fig = plt.figure(figsize=(20, 10))

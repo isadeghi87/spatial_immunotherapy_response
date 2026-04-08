@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=bulk_deconv
-#SBATCH --partition=short
+#SBATCH --partition=long
 #SBATCH --qos=short
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G

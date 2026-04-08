@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=convert_data
-#SBATCH --partition=short
+#SBATCH --partition=long
 #SBATCH --qos=short
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=128G

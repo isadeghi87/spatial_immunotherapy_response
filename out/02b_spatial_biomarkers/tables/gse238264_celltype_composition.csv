@@ -1,0 +1,169 @@
+sample,response,celltype,n_spots
+HCC1R,Non_Responder,CD8+ T cell,0
+HCC1R,Non_Responder,CD4+ T cell,0
+HCC1R,Non_Responder,Treg,0
+HCC1R,Non_Responder,NK cell,0
+HCC1R,Non_Responder,B cell,0
+HCC1R,Non_Responder,Macrophage,0
+HCC1R,Non_Responder,DC,0
+HCC1R,Non_Responder,Hepatocyte,0
+HCC1R,Non_Responder,Endothelial,0
+HCC1R,Non_Responder,Fibroblast,0
+HCC1R,Non_Responder,Tumor,0
+HCC1R,Non_Responder,Unassigned,0
+HCC1R,Responder,CD8+ T cell,2
+HCC1R,Responder,CD4+ T cell,0
+HCC1R,Responder,Treg,0
+HCC1R,Responder,NK cell,1
+HCC1R,Responder,B cell,288
+HCC1R,Responder,Macrophage,6
+HCC1R,Responder,DC,0
+HCC1R,Responder,Hepatocyte,2567
+HCC1R,Responder,Endothelial,9
+HCC1R,Responder,Fibroblast,85
+HCC1R,Responder,Tumor,3
+HCC1R,Responder,Unassigned,45
+HCC2R,Non_Responder,CD8+ T cell,0
+HCC2R,Non_Responder,CD4+ T cell,0
+HCC2R,Non_Responder,Treg,0
+HCC2R,Non_Responder,NK cell,0
+HCC2R,Non_Responder,B cell,0
+HCC2R,Non_Responder,Macrophage,0
+HCC2R,Non_Responder,DC,0
+HCC2R,Non_Responder,Hepatocyte,0
+HCC2R,Non_Responder,Endothelial,0
+HCC2R,Non_Responder,Fibroblast,0
+HCC2R,Non_Responder,Tumor,0
+HCC2R,Non_Responder,Unassigned,0
+HCC2R,Responder,CD8+ T cell,0
+HCC2R,Responder,CD4+ T cell,0
+HCC2R,Responder,Treg,0
+HCC2R,Responder,NK cell,0
+HCC2R,Responder,B cell,1290
+HCC2R,Responder,Macrophage,29
+HCC2R,Responder,DC,0
+HCC2R,Responder,Hepatocyte,1374
+HCC2R,Responder,Endothelial,0
+HCC2R,Responder,Fibroblast,72
+HCC2R,Responder,Tumor,1
+HCC2R,Responder,Unassigned,0
+HCC3R,Non_Responder,CD8+ T cell,0
+HCC3R,Non_Responder,CD4+ T cell,0
+HCC3R,Non_Responder,Treg,0
+HCC3R,Non_Responder,NK cell,0
+HCC3R,Non_Responder,B cell,0
+HCC3R,Non_Responder,Macrophage,0
+HCC3R,Non_Responder,DC,0
+HCC3R,Non_Responder,Hepatocyte,0
+HCC3R,Non_Responder,Endothelial,0
+HCC3R,Non_Responder,Fibroblast,0
+HCC3R,Non_Responder,Tumor,0
+HCC3R,Non_Responder,Unassigned,0
+HCC3R,Responder,CD8+ T cell,0
+HCC3R,Responder,CD4+ T cell,0
+HCC3R,Responder,Treg,0
+HCC3R,Responder,NK cell,0
+HCC3R,Responder,B cell,0
+HCC3R,Responder,Macrophage,0
+HCC3R,Responder,DC,0
+HCC3R,Responder,Hepatocyte,2170
+HCC3R,Responder,Endothelial,0
+HCC3R,Responder,Fibroblast,0
+HCC3R,Responder,Tumor,0
+HCC3R,Responder,Unassigned,0
+HCC4R,Non_Responder,CD8+ T cell,0
+HCC4R,Non_Responder,CD4+ T cell,0
+HCC4R,Non_Responder,Treg,0
+HCC4R,Non_Responder,NK cell,0
+HCC4R,Non_Responder,B cell,0
+HCC4R,Non_Responder,Macrophage,0
+HCC4R,Non_Responder,DC,0
+HCC4R,Non_Responder,Hepatocyte,0
+HCC4R,Non_Responder,Endothelial,0
+HCC4R,Non_Responder,Fibroblast,0
+HCC4R,Non_Responder,Tumor,0
+HCC4R,Non_Responder,Unassigned,0
+HCC4R,Responder,CD8+ T cell,0
+HCC4R,Responder,CD4+ T cell,0
+HCC4R,Responder,Treg,0
+HCC4R,Responder,NK cell,0
+HCC4R,Responder,B cell,2
+HCC4R,Responder,Macrophage,0
+HCC4R,Responder,DC,0
+HCC4R,Responder,Hepatocyte,2998
+HCC4R,Responder,Endothelial,0
+HCC4R,Responder,Fibroblast,2
+HCC4R,Responder,Tumor,0
+HCC4R,Responder,Unassigned,0
+HCC5NR,Non_Responder,CD8+ T cell,0
+HCC5NR,Non_Responder,CD4+ T cell,0
+HCC5NR,Non_Responder,Treg,0
+HCC5NR,Non_Responder,NK cell,0
+HCC5NR,Non_Responder,B cell,0
+HCC5NR,Non_Responder,Macrophage,0
+HCC5NR,Non_Responder,DC,0
+HCC5NR,Non_Responder,Hepatocyte,1310
+HCC5NR,Non_Responder,Endothelial,1
+HCC5NR,Non_Responder,Fibroblast,1
+HCC5NR,Non_Responder,Tumor,1
+HCC5NR,Non_Responder,Unassigned,7
+HCC5NR,Responder,CD8+ T cell,0
+HCC5NR,Responder,CD4+ T cell,0
+HCC5NR,Responder,Treg,0
+HCC5NR,Responder,NK cell,0
+HCC5NR,Responder,B cell,0
+HCC5NR,Responder,Macrophage,0
+HCC5NR,Responder,DC,0
+HCC5NR,Responder,Hepatocyte,0
+HCC5NR,Responder,Endothelial,0
+HCC5NR,Responder,Fibroblast,0
+HCC5NR,Responder,Tumor,0
+HCC5NR,Responder,Unassigned,0
+HCC6NR,Non_Responder,CD8+ T cell,0
+HCC6NR,Non_Responder,CD4+ T cell,0
+HCC6NR,Non_Responder,Treg,0
+HCC6NR,Non_Responder,NK cell,0
+HCC6NR,Non_Responder,B cell,5
+HCC6NR,Non_Responder,Macrophage,0
+HCC6NR,Non_Responder,DC,0
+HCC6NR,Non_Responder,Hepatocyte,364
+HCC6NR,Non_Responder,Endothelial,0
+HCC6NR,Non_Responder,Fibroblast,6
+HCC6NR,Non_Responder,Tumor,2200
+HCC6NR,Non_Responder,Unassigned,0
+HCC6NR,Responder,CD8+ T cell,0
+HCC6NR,Responder,CD4+ T cell,0
+HCC6NR,Responder,Treg,0
+HCC6NR,Responder,NK cell,0
+HCC6NR,Responder,B cell,0
+HCC6NR,Responder,Macrophage,0
+HCC6NR,Responder,DC,0
+HCC6NR,Responder,Hepatocyte,0
+HCC6NR,Responder,Endothelial,0
+HCC6NR,Responder,Fibroblast,0
+HCC6NR,Responder,Tumor,0
+HCC6NR,Responder,Unassigned,0
+HCC7NR,Non_Responder,CD8+ T cell,0
+HCC7NR,Non_Responder,CD4+ T cell,0
+HCC7NR,Non_Responder,Treg,0
+HCC7NR,Non_Responder,NK cell,0
+HCC7NR,Non_Responder,B cell,0
+HCC7NR,Non_Responder,Macrophage,0
+HCC7NR,Non_Responder,DC,0
+HCC7NR,Non_Responder,Hepatocyte,2453
+HCC7NR,Non_Responder,Endothelial,0
+HCC7NR,Non_Responder,Fibroblast,0
+HCC7NR,Non_Responder,Tumor,0
+HCC7NR,Non_Responder,Unassigned,0
+HCC7NR,Responder,CD8+ T cell,0
+HCC7NR,Responder,CD4+ T cell,0
+HCC7NR,Responder,Treg,0
+HCC7NR,Responder,NK cell,0
+HCC7NR,Responder,B cell,0
+HCC7NR,Responder,Macrophage,0
+HCC7NR,Responder,DC,0
+HCC7NR,Responder,Hepatocyte,0
+HCC7NR,Responder,Endothelial,0
+HCC7NR,Responder,Fibroblast,0
+HCC7NR,Responder,Tumor,0
+HCC7NR,Responder,Unassigned,0

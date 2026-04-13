@@ -28,7 +28,39 @@
 
 ---
 
+## Novelty & Contributions Beyond the Existing Literature
 
+Most published HCC immunotherapy studies analyze a single scRNA-seq cohort (typically < 100 k cells) with limited response annotations, no spatial context, and no external clinical-trial validation. The table below contrasts
+this project with the current state of the field.
+
+| Dimension | Typical published studies | **This project** |
+|-----------|--------------------------|-------------------|
+| **Atlas scale** | Single-cohort, 10–150 k cells | **~970 k cells** across 5 independent cohorts (GSE206325, GSE125449, GSE140228, GSE149614, E-MTAB-10553), making it one of the largest integrated HCC IO atlases assembled to date |
+| **Response labels** | Often absent or limited to few patients | 30 patients with matched Responder / Non-Responder annotations (anti-PD-1) plus etiology-matched NASH-HCC controls |
+| **Multi-cohort integration** | Rare; when attempted, batch effects are under-reported | Systematic Harmony batch correction across 5 labs, 3 sequencing chemistries, and 2 array platforms, with explicit batch-effect diagnostics |
+| **IO signature breadth** | Typically 2–4 signatures (e.g., exhaustion, cytotoxicity) | **16 mechanistically curated IO signatures** scored per cell, spanning exhaustion depth, progenitor state, M1/M2 polarity, mregDC, Tfh, TGF-β, WNT/β-catenin, angiogenesis, TLS, and checkpoints |
+| **Spatial transcriptomics** | Absent or reported as a standalone vignette | Fully integrated Visium spatial analysis (GSE173905) with TLS hub detection, spatial topology gradients at the tumor-stroma interface, and spatial deconvolution proxies |
+| **CNV–TME cross-modal integration** | InferCNV run in isolation; no link to immune context | InferCNV-derived malignant clones are **cross-correlated with TME composition shifts**, HLA-loss events are mapped to immune evasion pathways, and CNV burden is translated to progression probabilities via Kaplan-Meier hazard modeling |
+| **Clinical trial validation** | Deconvolution rarely applied to real trial data | CIBERSORTx reference matrix (15 853 genes × 60 cell types) applied to **IMbrave150** and **CheckMate-459** bulk RNA-seq with survival-linked time-dependent ROC validation |
+| **Response prediction** | When attempted, AUC typically 0.7–0.85 | Patient-level **LASSO AUC = 0.966** and **RF AUC = 0.941** using IO-signature and cell-composition features, with 50-iteration bootstrap stability |
+| **CD8 T cell trajectory** | Often binary (exhausted vs. not) | 6-state continuous pseudotime trajectory (naïve → progenitor → effector → transitional → terminal exhaustion → reinvigorated) with stream-vector UMAP dynamics |
+| **Cell–cell communication** | CellPhoneDB run globally without response stratification | Response-stratified ligand-receptor analysis across **24 curated IO-relevant pairs**, explicitly capturing mregDC–CD8 exhaustion crosstalk at spatially mapped boundaries |
+| **Metabolic & regulatory networks** | Rarely linked to IO response | Metabolic reprogramming scoring, SCENIC-derived regulon/TF networks (IRF1 vs MYC master regulators), and TCR clonotype expansion dynamics — all stratified by response |
+| **Reproducibility** | Scripts partially shared, manual execution | Fully automated **SLURM dependency-chain pipeline** (Make + SBATCH), conda-locked environment, and >30 publication-ready figures generated end-to-end |
+
+### Key conceptual advances
+
+1. **Paradoxical exhaustion–response link, quantified at scale.** While scattered reports note that exhaustion markers can co-exist with response, we provide the first large-scale, multi-cohort confirmation that T cell exhaustion and terminal exhaustion scores are *elevated* in Responders, with non-overlapping bootstrap CIs, reframing exhaustion as evidence of active anti-tumour engagement rather than dysfunction.
+
+2. **Spatial immune topology as a predictive layer.** Rather than treating spatial data as illustration, we extract computable spatial features (TLS density, CD8–tumor distance, hypoxia gradients, M1/M2 spatial polarity) and show they carry predictive information orthogonal to cell-abundance biomarkers alone.
+
+3. **End-to-end translational bridge: single-cell → spatial → bulk trial.** No prior HCC IO study connects a unified single-cell atlas through spatial topology to deconvolved clinical-trial survival in a single, reproducible pipeline. This three-layer bridge (atlas → spatial → trial) is the central methodological contribution.
+
+4. **CNV-aware immune evasion modelling.** By integrating InferCNV outputs with TME composition, we link chromosomal events (e.g., HLA-loss, chr8q gain) directly to immune evasion phenotypes and quantify their hazard contribution — moving beyond the standard practice of reporting CNV and immune landscapes in isolation.
+
+5. **Comprehensive multi-modal IO dashboard.** The project unifies scRNA-seq, scTCR-seq, Visium spatial, bulk RNA-seq deconvolution, CNV inference, regulon analysis, metabolic scoring, and cell–cell communication into a single, reproducible framework — a level of integration rarely attempted in liver cancer IO research.
+
+---
 
 ## Recent Updates (April 2026)
 

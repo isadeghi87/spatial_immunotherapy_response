@@ -160,33 +160,7 @@ All single-cell and spatial datasets are public under the accessions listed abov
 
 ---
 
-## Supplementary Methods
-
-**S.M.1 Harmony parameters.** θ = 2, σ = 0.1, max iterations = 20; convergence tolerance 10⁻⁴.
-
-**S.M.2 NMF stability.** We ran NMF for k ∈ {6, 8, 10, 12, 15} with 10 random seeds per k; k = 10 minimized mean reconstruction error per added component (elbow on MSE vs k) and yielded cophenetic correlation > 0.9 across seeds.
-
-**S.M.3 LOOCV protocol.** For each of the 24 patients, 23 were used for training with internal 3-fold stratified CV on the log-scale regularization grid 10⁻³ … 10¹; the held-out patient was scored. The AUC was computed over the 24 predicted probabilities.
-
-**S.M.4 InferCNV settings.** Cutoff = 0.1, cluster_by_groups = TRUE, denoise = TRUE, HMM = TRUE, analysis_mode = subclusters; reference set = CD4-Memory ∪ NK with > 500 cells per patient.
-
-**S.M.5 Visium projection.** Per-spot normalization to 10,000 counts, log1p, scaling; signature scoring used `scanpy.tl.score_genes` with 50 background genes matched in expression bin.
-
-**S.M.6 Bootstrap CIs.** 2,000 iterations sampling patients with replacement; percentile CIs at 2.5 % and 97.5 %.
-
----
-
-## Supplementary Results
-
-**S.R.1 Batch-effect diagnostics.** Silhouette score against dataset label fell from 0.41 (pre-Harmony) to 0.04 (post-Harmony) on the 50-PC embedding; against cell-type label it was preserved (0.27 → 0.26).
-
-**S.R.2 Full hallmark pathway table.** Twenty pathways, effect sizes and BH-adjusted p-values in **Table S9**. IFN-α, IFN-γ, TNF-NFκB elevated in R (padj < 10⁻²⁵⁰); WNT/β-catenin, OXPHOS, complement, TGF-β, coagulation elevated in NR.
-
-**S.R.3 Immune ratios.** T/Tumor ratio AUC = 0.87; CD8/Treg AUC = 0.82; DC/Macro AUC = 0.49; Effector/Exhausted AUC = 0.44 (**Table S6**).
-
-**S.R.4 Ligand–receptor expansion.** Full 24-pair scan in **Table S10**; CXCL9–CXCR3 axis was the single strongest R-specific interaction after BH correction.
-
-**S.R.5 Cappuyns concordance.** 3 × 2 cross-tabulation between internal subtypes and Cappuyns subsets: internal S1 / Competent = 8/9; S3 / Resistant = 11/13; κ = 0.55; χ² p = 0.0092.
+> Supplementary Methods, Supplementary Results and full Supplementary Table/Figure legends are provided in the companion file [`docs/supplementary.md`](supplementary.md).
 
 ---
 
@@ -200,24 +174,30 @@ All single-cell and spatial datasets are public under the accessions listed abov
 
 **Table 4 — Patient subtype × response.** `out/04_complementary/tables/subtype_response_rates.csv`. S1 9/3 R/NR; S2 0/2; S3 1/12; χ² p = 0.0092.
 
-**Supplementary Tables S1–S11** — machine-readable CSVs in `out/` (see individual references in main text).
+**Supplementary Tables S1–S14** — machine-readable CSVs in `out/` (see individual references in main text). S12 = patient demographics; S13 = sample overview; S14 = cohort summary.
 
 ---
 
 ## Figure legends
 
-**Figure 1. Integrated single-cell atlas of HCC immunotherapy.** (a) UMAP of 970,632 cells coloured by dataset, cell type, tissue and response. (b) Study and patient count table. (c) Batch-effect silhouette before / after Harmony.
+**Figure 1 | Integrated single-cell atlas of HCC immunotherapy.** (a) UMAP of 970,632 cells coloured by dataset, cell type, tissue and response. (b) Cohort composition. (c) Batch-effect silhouette before / after Harmony. (File: `Figure1_atlas_landscape.png`)
 
-**Figure 2. CD8 T-cell states and response.** (a) State composition bar per patient split by R/NR. (b) State-level effect sizes and BH-padj. (c) UMAP coloured by state.
+**Figure 2 | Tumour-intrinsic axis of response (CNV + CD8 states).** (a) Per-patient CNV mean vs standard deviation by response. (b) CD8 state composition split by R / NR. (c) State-level effect sizes with BH-padj. (File: `Figure2_tumour_intrinsic.png`)
 
-**Figure 3. NMF expression programs.** (a) Program × patient activity heatmap with response annotation. (b) NMF9 top-gene loadings and volcano of response stats.
+**Figure 3 | Immune engagement and hallmark pathways.** (a) 20-pathway R-vs-NR effect heatmap. (b) Top-10 ligand–receptor dotplot across sender–receiver pairs. (c) CD8 activation–exhaustion scatter. (File: `Figure3_immune_engagement.png`)
 
-**Figure 4. Five-layer predictor.** (a) Per-layer LOOCV ROC curves (L1–L5 + ensemble). (b) LASSO-selected features and variance partition.
+**Figure 4 | Spatial axis: NMF9, TLS and Visium projection.** (a) Visium sections (GSE238264) coloured by NMF9 and TLS score; R sections show co-localized hubs. (b) Cross-cohort signature robustness across Visium cohorts. (File: `Figure4_spatial_axis.png`)
 
-**Figure 5. CD8 diffusion pseudotime and response.** (a) UMAP coloured by pseudotime. (b) R/NR density along pseudotime with KS and Cliff’s δ. (c) Cytotoxic vs exhaustion gene dynamics.
+**Figure 5 | NMF integrator across scRNA / bulk / Visium.** (a) Program × patient activity heatmap with response annotation. (b) NMF9 top-gene loadings and volcano of response stats. (c) Projected activity in bulk and Visium. (File: `Figure5_nmf_integrator.png`)
 
-**Figure 6. Hallmark pathways and LR interactions.** (a) 20-pathway R-vs-NR effect heatmap. (b) Top-10 LR dotplot across sender–receiver pairs.
+**Figure 6 | Five-layer predictor.** (a) Per-layer LOOCV ROC curves (L1–L5 + ensemble). (b) LASSO-selected features and variance partition. (c) Balanced cumulative AUC as layers are added. (File: `Figure6_multilayer_predictor.png`)
 
-**Figure 7. Spatial projection of NMF9 and TLS.** Visium sections (GSE238264) coloured by NMF9 and TLS score; R sections show co-localized hubs.
+**Extended Data Fig. 1 | CNV genomic instability.** Per-patient InferCNV summaries and clonal-heterogeneity distributions. (File: `ExtendedData_Fig1_CNV_genomic_instability.png`)
 
-**Figure 8. Bulk trial validation.** Deconvolved CD8-effector / Treg ratio stratifies IMbrave150 PFS (log-rank p = 0.031).
+**Extended Data Fig. 2 | Regulon activity and cell–cell communication.** (File: `ExtendedData_Fig2_regulon_communication.png`)
+
+**Extended Data Fig. 3 | High-contrast spatial biomarker maps.** Hypoxia, CD8 exhaustion, M1−M2 polarity, IO response on the UMAP and on Visium coordinates. (File: `ExtendedData_Fig3_high_contrast_spatial.png`)
+
+**Extended Data Fig. 4 | Bulk trial validation (IMbrave150 / CheckMate-459).** Deconvolved CD8-effector / Treg ratio stratifies IMbrave150 PFS (log-rank p = 0.031). (File: `ExtendedData_Fig4_bulk_trial_validation.png`)
+
+**Supplementary Figures S1–S9.** S1 atlas QC; S2 immune UMAPs; S3 marker annotation; S4 spatial diagnostics; S5 cross-cohort Visium; S6 signature stability; S7 reproducibility; S8 patient subtyping; S9 patient and cohort demographics. (Files: `SupplementaryFig_S{1..9}_*.png`)

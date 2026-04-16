@@ -395,10 +395,12 @@ Based on recent analysis expansions, the pipeline now fully incorporates these c
 
 ## Manuscript and Documentation
 
-The full manuscript draft — Introduction, Materials and Methods, Results, Discussion, Supplementary Methods/Results, Tables and Figure legends with real literature references — is available in the `docs/` directory:
+The full manuscript draft — Introduction, Materials and Methods, Results, Discussion, Tables and Figure legends with real literature references — and the companion Supplementary Information (Supplementary Methods, Supplementary Results, Supplementary Tables S1–S14 and Supplementary Figure legends S1–S9) are available in the `docs/` directory, in both Markdown and Word formats:
 
-- **Full manuscript (Markdown):** [docs/manuscript.md](docs/manuscript.md)
-- **Materials and Methods (companion):** [docs/materials_and_methods.md](docs/materials_and_methods.md)
+- **Main manuscript:** [docs/manuscript.md](docs/manuscript.md) · [docs/manuscript.docx](docs/manuscript.docx)
+- **Supplementary Information:** [docs/supplementary.md](docs/supplementary.md) · [docs/supplementary.docx](docs/supplementary.docx)
+- **Materials and Methods (companion):** [docs/materials_and_methods.md](docs/materials_and_methods.md) · [docs/materials_and_methods.docx](docs/materials_and_methods.docx)
+- **Patient / cohort demographics:** [out/06_manuscript_figures/SupplementaryFig_S9_patient_demographics.png](out/06_manuscript_figures/SupplementaryFig_S9_patient_demographics.png) with tables [S12](out/06_manuscript_figures/tables/S12_patient_demographics.csv), [S13](out/06_manuscript_figures/tables/S13_sample_overview.csv), [S14](out/06_manuscript_figures/tables/S14_cohort_summary.csv).
 
 ### Headline numerical findings (24 labelled patients, 7 R / 17 NR)
 

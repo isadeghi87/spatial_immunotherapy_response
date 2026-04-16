@@ -173,6 +173,11 @@ spatial_immunotherapy_response/
  │       • CIBERSORTx reference (15 853 genes × 60 CT) │
  │       • NNLS deconvolution of trial bulk RNA-seq     │
  │       • Inferred immunotype from proportions         │
+ │                                                      │
+ │  02i  Cappuyns Signature Scoring & Molecular Subtyping │
+ │       • 21 scRNA-derived HCC signatures (Table S2)   │
+ │       • Patient-level ImmunePos / ImmuneNeg classif.  │
+ │       • Immune-competent / Angiogenesis / Resistant   │
  └────────┬─────────────────────────────────────────────┘
           ▼
  ┌──────────────────┐
@@ -207,6 +212,7 @@ spatial_immunotherapy_response/
 | Ma et al. 2019 | GSE125449 | HCC landscape | 8 | ~10 k | Treatment-naïve |
 | Zhang et al. 2019 _Cell_ | GSE140228 | CD45+ immune | — | ~67 k | Immune-enriched |
 | Pfister et al. 2021 _Nature_ | E-MTAB-10553 | NASH-HCC + anti-PD-1 | 12 | ~152 k | NASH etiology |
+| Cappuyns et al. 2023 _Nat Commun_ | Lambrechts lab / EGA | Atezo+Bev HCC | 31 | ~91 k | **R vs NR**, atezo+bev, 21 gene signatures |
 
 ### Bulk RNA-seq (validation & deconvolution)
 
@@ -387,10 +393,27 @@ Based on recent analysis expansions, the pipeline now fully incorporates these c
 - **TCR/Clonality Dynamics**: Seamless mapping of paired scTCR-seq V(D)J repertoires tracking clonal expansion frequencies and lineage commitment in distinct response groups (`04e_tcr_dynamics.py`).
 - **Cell-Cell Communication**: A sophisticated pipeline mapping inter-cellular cross-talk bridging interactions utilizing a CellPhoneDB topology inference methodology, explicitly capturing mregDC orchestration of CD8+ T cell exhaustion along spatially mapped boundaries (`04d_cell_communication.py`).
 
-## Materials and Methods / Documentation
+## Manuscript and Documentation
 
-The fully referenced **Materials and Methods** for this project, suitable for manuscript inclusion (*Nature Cancer* submission draft), are available in the `docs/` directory:
-- [Materials and Methods (Markdown)](docs/materials_and_methods.md)
-- [Materials and Methods (Word / DOCX)](docs/materials_and_methods.docx)
+The full manuscript draft — Introduction, Materials and Methods, Results, Discussion, Supplementary Methods/Results, Tables and Figure legends with real literature references — is available in the `docs/` directory:
 
-These documents detail the study cohorts, scRNA-seq preprocessing, TME characterization, bulk RNA-seq deconvolution, and advanced T-cell trajectory, spatial, and regulatory network analyses used throughout these scripts.
+- **Full manuscript (Markdown):** [docs/manuscript.md](docs/manuscript.md)
+- **Materials and Methods (companion):** [docs/materials_and_methods.md](docs/materials_and_methods.md)
+
+### Headline numerical findings (24 labelled patients, 7 R / 17 NR)
+
+| Layer | Features | LOOCV AUC |
+|-------|----------|-----------|
+| **L3 cell-type composition** | 3 | **0.94** |
+| **L4 IO signatures** | 3 | **0.82** |
+| **L1 tumour-intrinsic CNV** | 3 | **0.74** |
+| L5 NMF programs | 3 | 0.71 |
+| L2 regulons | 3 | 0.53 |
+| **Balanced 5-layer ensemble** | 15 | **0.81** |
+
+Independent axes:
+- **Clonal heterogeneity** (`cnv_score_sd`) elevated in NR (effect −0.62, p = 0.028)
+- **NMF9** cytotoxic-T program (CCL5 / NKG7 / IL32 / CCL4) elevated in R (effect +0.95, p = 0.028)
+- **CD8 effector + terminal-exhausted** states co-elevated in R (padj < 10⁻³)
+- **T/Tumor ratio AUC = 0.87**, **CD8/Treg AUC = 0.82**
+- Internal subtype × response χ² p = **0.0092**; concordance with Cappuyns et al. 2023 κ = **0.55**

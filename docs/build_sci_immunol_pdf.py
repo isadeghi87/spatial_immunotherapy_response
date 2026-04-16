@@ -44,25 +44,136 @@ TITLE_BLOCK_SUPP = """
 """
 
 # Main-manuscript figures to embed (in order, before References).
+# Legends are panel-resolved and quote effect sizes from the manuscript.
 MAIN_FIGURES = [
     ("Figure1_atlas_landscape.png",
-     "Fig. 1. Integrated single-cell atlas of HCC immunotherapy.",
-     "UMAP of 970,632 cells coloured by dataset, cell type, tissue and response; cohort composition; batch-effect silhouette before / after Harmony."),
+     "Fig. 1. Integrated single-cell atlas of hepatocellular carcinoma immunotherapy.",
+     "(A) UMAP of 970,632 single cells from five harmonised public cohorts "
+     "(GSE206325, GSE125449, GSE140228, GSE149614, E-MTAB-10553) coloured by "
+     "manual cell-type annotation; 16 major populations spanning malignant "
+     "hepatocytes, CD4\u2009/\u2009CD8 T, NK, B\u2009/\u2009plasma, myeloid, endothelial and "
+     "stromal compartments are resolved. "
+     "(B) Same embedding coloured by dataset of origin after Harmony "
+     "integration (donor and study as batch covariates); overlapping "
+     "distributions indicate that biological structure, rather than cohort, "
+     "dominates the embedding. "
+     "(C) Dot plot of canonical lineage markers (rows) across annotated "
+     "cell types (columns); dot size encodes percent of cells expressing the "
+     "gene, colour encodes scaled mean expression. "
+     "(D) Stacked cell-type composition per patient, grouped by "
+     "anti-PD-1 response label (7 Responders, 17 Non-Responders); bar "
+     "heights are normalised to 100 % so compositional shifts between R "
+     "and NR are directly comparable."),
+
     ("Figure2_tumour_intrinsic.png",
-     "Fig. 2. Tumour-intrinsic axis of response (CNV + CD8 states).",
-     "Per-patient CNV mean vs. standard deviation by response; CD8 state composition split by R/NR; state-level effect sizes with BH-padj."),
+     "Fig. 2. Tumour-intrinsic axis of response: CNV burden, clonal heterogeneity and TME context.",
+     "(A) UMAP coloured by per-cell InferCNV score (malignancy proxy); "
+     "hepatocyte clusters display the expected elevated CNV score, "
+     "non-malignant compartments remain near baseline. "
+     "(B) Per-patient chromosome-level CNV heatmap (rows, patients; "
+     "columns, genomic bins) with recurrent gains (1q, 8q) and losses "
+     "(4q, 8p, 17p) visible in the malignant compartment, alongside "
+     "sample-level CNV-score violins. "
+     "(C) InferCNV dashboard: per-patient CNV-score distributions, "
+     "malignant-fraction and clone-diversity (Shannon) summaries. "
+     "(D) Patient-level violins comparing Responders vs Non-Responders "
+     "for CNV mean (n.s., p\u2009=\u20090.42, d\u2009=\u2009\u22120.48), CNV standard "
+     "deviation (clonal heterogeneity, *p\u2009=\u20090.028, d\u2009=\u2009\u22120.62, "
+     "Mann\u2013Whitney U), malignant fraction (n.s.) and CNV clone diversity "
+     "(Shannon, n.s.); dots, patients; box, median and IQR. "
+     "(E) Tumour-microenvironment context at high CNV clonality: "
+     "immune-ecosystem composition and bulk-RNA-seq concordance panels "
+     "showing that high clonal heterogeneity co-occurs with depleted "
+     "lymphoid and enriched myeloid signatures."),
+
     ("Figure3_immune_engagement.png",
-     "Fig. 3. Immune engagement and hallmark pathways.",
-     "20-pathway R-vs-NR effect heatmap; top-10 ligand\u2013receptor dotplot across sender\u2013receiver pairs; CD8 activation\u2013exhaustion scatter."),
+     "Fig. 3. Immune engagement axis: composition, signatures and hallmark pathways.",
+     "(A) UMAP of immune cells coloured by response label (R, blue; "
+     "NR, red) showing Responder enrichment in CD8 effector / cytotoxic "
+     "islands. "
+     "(B) Per-cell-type abundance bar plot (mean \u00b1 SE of per-patient "
+     "proportion) with BH-adjusted Mann\u2013Whitney p-values annotated; "
+     "Responders show significantly higher B/Plasma and dysfunctional-"
+     "effector CD8 populations. "
+     "(C) Radar plot of mean scaled scores for 10 IO signatures "
+     "(cytotoxicity, exhaustion, interferon-\u03b3, TLS, antigen presentation, "
+     "TGF-\u03b2, angiogenesis, EMT, stemness, hepatocyte-differentiation) "
+     "per response group. "
+     "(D) Violin plots of key signatures (cytotoxicity, exhaustion, "
+     "IFN-\u03b3, TLS) by response; Responders show co-elevated cytotoxicity "
+     "and exhaustion\u2014the \u201cexhaustion\u2013cytotoxicity paradox\u201d. "
+     "(E) Tissue-level heatmap of 20 hallmark and IO signatures across "
+     "R and NR samples (z-scored); interferon-\u03b3 and allograft-rejection "
+     "programmes are up in R, oxidative-phosphorylation and fatty-acid "
+     "metabolism are up in NR. "
+     "(F) Volcano plot of differentially expressed genes between "
+     "Responders and Non-Responders (pseudo-bulk DESeq2); red, "
+     "significant R-up; blue, significant NR-up (|log2FC|\u2009\u2265\u20091, "
+     "padj\u2009<\u20090.05)."),
+
     ("Figure4_spatial_axis.png",
-     "Fig. 4. Spatial axis: NMF9, TLS and Visium projection.",
-     "Visium sections (GSE238264) coloured by NMF9 and TLS score; cross-cohort signature robustness across Visium cohorts."),
+     "Fig. 4. Spatial axis: NMF9 and TLS hubs on Visium sections.",
+     "(A) Visium (GSE238264) Responder sections with spot-level scores "
+     "for key signatures (cytotoxic T, TLS, hepatocyte-differentiation); "
+     "R sections show spatially clustered cytotoxic\u2013TLS hubs. "
+     "(B) Same signatures on Non-Responder sections, showing diffuse "
+     "cytotoxicity and weaker TLS hubs. "
+     "(C) Moran\u2019s I per signature and section; Responder signatures "
+     "show higher spatial autocorrelation (organised niches), Non-"
+     "Responders are closer to random. "
+     "(D) Violin plots of per-spot signature scores aggregated across "
+     "sections, split by R vs NR, with permutation-based p-values. "
+     "(E) Neighbourhood-enrichment heatmap (z-score) between cell-type "
+     "deconvolved neighbourhoods; Responders show stronger CD8\u2013B-cell "
+     "and CD8\u2013DC co-localisation. "
+     "(F) Top TLS-score Visium tiles (spots and H&E overlays) from R and "
+     "NR sections, illustrating the spatial architecture of tertiary "
+     "lymphoid structure-like hubs in Responders."),
+
     ("Figure5_nmf_integrator.png",
-     "Fig. 5. NMF integrator across scRNA / bulk / Visium.",
-     "Program \u00d7 patient activity heatmap with response annotation; NMF9 top-gene loadings and volcano of response stats; projected activity in bulk and Visium."),
+     "Fig. 5. Cross-modality non-negative matrix factorisation integrator.",
+     "(A) Heatmap of the top-8 gene loadings per NMF program "
+     "(k\u2009=\u200910; rows, genes; columns, programs sorted by response "
+     "effect); NMF9 is dominated by cytotoxic\u2013effector genes "
+     "(TMSB4X, CCL5, NKG7, IL32, CCL4) while NMF3 captures a "
+     "hepatocyte-differentiation program (APOA2, ALB, APOC3, APOC1). "
+     "(B) Forest-style plot of standardised mean difference in per-"
+     "patient program activity (Responder \u2212 Non-Responder) with "
+     "annotated top genes; NMF9 is significantly elevated in Responders "
+     "(*p\u2009=\u20090.028, Mann\u2013Whitney U) and NMF3 trends higher in "
+     "Non-Responders (p\u2009=\u20090.099). "
+     "(C) Cross-modality concordance: per-program effect size in the "
+     "single-cell atlas (x-axis) versus mean activity in an independent "
+     "bulk-RNA-seq cohort (GSE202069, y-axis); NMF9 is the sole program "
+     "with concordant elevation in Responders across modalities. "
+     "(D) Projected NMF program activity on Visium sections "
+     "(rows, programs sorted by \u0394(R\u2009\u2212\u2009NR); columns, sections "
+     "HCC1R\u2013HCC7NR) confirming that the sc-atlas-defined NMF9 "
+     "cytotoxic program and NMF3 hepatocyte program recapitulate on "
+     "spatial tissue."),
+
     ("Figure6_multilayer_predictor.png",
-     "Fig. 6. Five-layer predictor.",
-     "Per-layer LOOCV ROC curves (L1\u2013L5 + ensemble); LASSO-selected features and variance partition; balanced cumulative AUC as layers are added."),
+     "Fig. 6. Five-layer predictive framework and clinical translation.",
+     "(A) Leave-one-out cross-validated AUC bars for each predictive "
+     "layer (L1 tumour-intrinsic CNV, L2 transcription-factor regulons, "
+     "L3 cell-type composition, L4 IO signatures, L5 NMF programs) and "
+     "for the balanced ensemble; L3 AUC\u2009=\u20090.94, L4 AUC\u2009=\u20090.82, "
+     "L1 AUC\u2009=\u20090.74, L5 AUC\u2009=\u20090.71, L2 AUC\u2009=\u20090.53, ensemble "
+     "AUC\u2009=\u20090.81. "
+     "(B) ROC curves per layer and for the ensemble, from the same "
+     "leave-one-patient-out LASSO logistic regression. "
+     "(C) Variance-partition stacked bar showing unique versus shared "
+     "predictive variance across layers; tumour-intrinsic CNV "
+     "contributes an independent AUC\u2009=\u20090.74 beyond cell composition. "
+     "(D) Coefficient (effect) plot for the top LASSO-selected features "
+     "per layer, colour-coded by direction. "
+     "(E) Bulk-RNA-seq clustermap (IMbrave150 and CheckMate-459 "
+     "registration-level samples) scored with the top signatures "
+     "derived from the sc-atlas; rows, signatures; columns, patients. "
+     "(F) Kaplan\u2013Meier survival curves stratified by composite "
+     "predictor tertile on the clinical-trial bulk cohorts, showing "
+     "separation in progression-free survival consistent with the "
+     "sc-atlas-derived predictor."),
 ]
 
 

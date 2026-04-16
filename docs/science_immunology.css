@@ -1,0 +1,249 @@
+/*  Science Immunology-inspired style for WeasyPrint
+    ---------------------------------------------------
+    Closely follows the typographic conventions of Science Immunology:
+      - 2-column body with justified Nimbus Roman (Times) at 9.5pt / 12pt leading
+      - Red header strip with journal name
+      - Large serif bold title, italic affiliations
+      - Shaded boxed abstract
+      - Bold small-caps sans section heads
+      - Hanging indent numbered reference list, 8.5pt
+      - Figure/legend small caps lead-in ("Fig. 1.")
+*/
+
+@page {
+  size: A4;
+  margin: 16mm 14mm 14mm 14mm;
+  @top-left  { content: ""; }
+  @top-right {
+      content: "Sadeghi et al., Sci. Immunol. (2026)";
+      font-family: "Nimbus Sans", Helvetica, Arial, sans-serif;
+      font-size: 7.5pt;
+      color: #666;
+  }
+  @bottom-center {
+      content: "Page " counter(page) " of " counter(pages);
+      font-family: "Nimbus Sans", Helvetica, Arial, sans-serif;
+      font-size: 7.5pt;
+      color: #666;
+  }
+}
+
+@page :first {
+  @top-right { content: ""; }
+}
+
+html { font-size: 9.5pt; }
+
+body {
+  font-family: "Nimbus Roman", "Liberation Serif", "Times New Roman", Times, serif;
+  font-size: 9.5pt;
+  line-height: 1.26;
+  color: #111;
+  text-align: justify;
+  hyphens: auto;
+  column-count: 2;
+  column-gap: 6mm;
+  column-fill: balance;
+}
+
+/* --- Title block spans both columns --- */
+.journal-banner,
+h1.title,
+.authors,
+.affiliations,
+.abstract,
+.one-sentence-summary {
+  column-span: all;
+}
+
+.journal-banner {
+  background: #a6192e;
+  color: white;
+  padding: 3mm 4mm;
+  margin-bottom: 4mm;
+  font-family: "Nimbus Sans", Helvetica, Arial, sans-serif;
+  font-weight: bold;
+  font-size: 11pt;
+  letter-spacing: 0.5mm;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.journal-banner .left  { text-transform: uppercase; }
+.journal-banner .right {
+  font-weight: normal;
+  font-size: 8pt;
+  font-style: italic;
+  letter-spacing: 0;
+}
+
+h1.title {
+  font-size: 18pt;
+  line-height: 1.18;
+  font-weight: bold;
+  margin: 2mm 0 3mm 0;
+  color: #111;
+  text-align: left;
+}
+
+.authors {
+  font-size: 10pt;
+  margin: 0 0 1mm 0;
+  text-align: left;
+}
+.authors sup { font-size: 7pt; vertical-align: super; }
+
+.affiliations {
+  font-size: 8pt;
+  font-style: italic;
+  color: #333;
+  margin: 0 0 3mm 0;
+  line-height: 1.2;
+  text-align: left;
+}
+.affiliations sup { font-style: normal; }
+
+.one-sentence-summary {
+  font-size: 9pt;
+  font-style: italic;
+  margin: 0 0 2mm 0;
+  padding: 1mm 2mm;
+  border-left: 2pt solid #a6192e;
+  color: #333;
+}
+
+.abstract {
+  background: #f3f0e9;
+  border: 0.3pt solid #c8c0a8;
+  padding: 3mm 4mm;
+  margin: 0 0 4mm 0;
+  font-size: 9pt;
+  line-height: 1.3;
+  text-align: justify;
+}
+.abstract::before {
+  content: "ABSTRACT";
+  display: block;
+  font-family: "Nimbus Sans", Helvetica, Arial, sans-serif;
+  font-weight: bold;
+  font-size: 8.5pt;
+  letter-spacing: 0.6mm;
+  color: #a6192e;
+  margin-bottom: 1.5mm;
+}
+
+/* --- Section heads (converted from ## in markdown) --- */
+h2 {
+  font-family: "Nimbus Sans", Helvetica, Arial, sans-serif;
+  font-size: 10.5pt;
+  font-weight: bold;
+  color: #a6192e;
+  margin: 3mm 0 1.5mm 0;
+  text-transform: uppercase;
+  letter-spacing: 0.3mm;
+  break-after: avoid;
+  page-break-after: avoid;
+  text-align: left;
+}
+
+h3 {
+  font-family: "Nimbus Sans", Helvetica, Arial, sans-serif;
+  font-size: 9.5pt;
+  font-weight: bold;
+  color: #111;
+  margin: 2.5mm 0 0.5mm 0;
+  break-after: avoid;
+  page-break-after: avoid;
+  text-align: left;
+}
+
+h4 {
+  font-family: "Nimbus Roman", "Liberation Serif", Times, serif;
+  font-size: 9.5pt;
+  font-weight: bold;
+  font-style: italic;
+  margin: 2mm 0 0.5mm 0;
+  break-after: avoid;
+  text-align: left;
+}
+
+p  { margin: 0 0 1.2mm 0; text-indent: 0; }
+p + p { text-indent: 3mm; }
+
+strong { font-weight: bold; }
+em { font-style: italic; }
+
+a { color: #003e80; text-decoration: none; }
+
+/* --- Lists --- */
+ul, ol { margin: 0.5mm 0 1.5mm 4mm; padding: 0; }
+ul li, ol li { margin-bottom: 0.3mm; font-size: 9pt; }
+
+/* --- Tables --- */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 8pt;
+  margin: 1.5mm 0 2mm 0;
+  column-span: all;
+}
+th, td {
+  border-top: 0.3pt solid #222;
+  border-bottom: 0.3pt solid #222;
+  padding: 1mm 1.5mm;
+  text-align: left;
+  vertical-align: top;
+}
+th {
+  background: #f3f0e9;
+  font-family: "Nimbus Sans", Helvetica, Arial, sans-serif;
+  font-weight: bold;
+  font-size: 8pt;
+}
+tr + tr td { border-top: none; }
+table { break-inside: avoid; }
+
+/* --- Code-inline gene symbols etc. --- */
+code {
+  font-family: "DejaVu Sans Mono", "Courier New", monospace;
+  font-size: 8pt;
+  background: #f3f0e9;
+  padding: 0 0.5mm;
+  border-radius: 1pt;
+}
+pre code { display: block; padding: 1.5mm; font-size: 7.5pt; line-height: 1.2; }
+
+/* --- Blockquotes (used for summary box) --- */
+blockquote {
+  border-left: 2pt solid #a6192e;
+  margin: 2mm 0;
+  padding: 0.5mm 2.5mm;
+  font-style: italic;
+  color: #333;
+  font-size: 8.8pt;
+}
+
+/* --- References (rendered as <ol> by pandoc) --- */
+.references ol {
+  font-size: 7.8pt;
+  line-height: 1.25;
+  margin-left: 4mm;
+  padding-left: 0;
+}
+.references ol li { margin-bottom: 0.5mm; text-align: justify; }
+
+/* --- Figure captions --- */
+figure { margin: 2mm 0; break-inside: avoid; }
+figcaption {
+  font-size: 8pt;
+  color: #222;
+  line-height: 1.25;
+  margin-top: 1mm;
+}
+
+/* --- HR separators become thin light lines --- */
+hr {
+  border: none;
+  border-top: 0.3pt solid #c8c0a8;
+  margin: 3mm 0;
+}

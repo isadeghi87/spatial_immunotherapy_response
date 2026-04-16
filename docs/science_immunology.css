@@ -14,12 +14,7 @@
   size: A4;
   margin: 16mm 14mm 14mm 14mm;
   @top-left  { content: ""; }
-  @top-right {
-      content: "Sadeghi et al., Sci. Immunol. (2026)";
-      font-family: "Nimbus Sans", Helvetica, Arial, sans-serif;
-      font-size: 7.5pt;
-      color: #666;
-  }
+  @top-right { content: ""; }
   @bottom-center {
       content: "Page " counter(page) " of " counter(pages);
       font-family: "Nimbus Sans", Helvetica, Arial, sans-serif;
@@ -41,40 +36,63 @@ body {
   color: #111;
   text-align: justify;
   hyphens: auto;
+}
+
+/* Wrap body text in .two-col to get the 2-column journal look while
+   keeping figures/title in a single-column block to avoid WeasyPrint
+   column-span paging issues. */
+.two-col {
   column-count: 2;
   column-gap: 6mm;
   column-fill: balance;
 }
 
-/* --- Title block spans both columns --- */
-.journal-banner,
+/* --- Title block sits above the 2-col wrapper --- */
 h1.title,
 .authors,
 .affiliations,
 .abstract,
 .one-sentence-summary {
-  column-span: all;
+  display: block;
 }
 
-.journal-banner {
-  background: #a6192e;
-  color: white;
-  padding: 3mm 4mm;
-  margin-bottom: 4mm;
-  font-family: "Nimbus Sans", Helvetica, Arial, sans-serif;
-  font-weight: bold;
-  font-size: 11pt;
-  letter-spacing: 0.5mm;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+/* Manuscript figures: each on its own landscape-friendly page, both
+   columns, with caption. Placed outside the 2-column flow to avoid
+   column-span + paging edge-cases in WeasyPrint. */
+.figures-section {
+  break-before: page;
 }
-.journal-banner .left  { text-transform: uppercase; }
-.journal-banner .right {
-  font-weight: normal;
-  font-size: 8pt;
-  font-style: italic;
-  letter-spacing: 0;
+figure.manuscript-figure {
+  margin: 0 0 6mm 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
+  break-before: page;
+  page-break-before: always;
+  text-align: center;
+}
+figure.manuscript-figure:first-child {
+  break-before: avoid;
+  page-break-before: avoid;
+}
+figure.manuscript-figure img {
+  width: 100%;
+  max-height: 220mm;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto;
+}
+figure.manuscript-figure figcaption {
+  font-size: 8.5pt;
+  color: #222;
+  line-height: 1.3;
+  text-align: justify;
+  margin-top: 3mm;
+  padding: 0 2mm;
+}
+figure.manuscript-figure figcaption strong {
+  font-family: "Nimbus Sans", Helvetica, Arial, sans-serif;
+  font-size: 9pt;
+  color: #a6192e;
 }
 
 h1.title {

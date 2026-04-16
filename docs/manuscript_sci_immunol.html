@@ -1,23 +1,16 @@
 <!DOCTYPE html>
 <html lang='en'><head><meta charset='utf-8'>
-<title>Sadeghi et al., Sci. Immunol. 2026 — Main</title>
+<title>Sadeghi & Bengsch — Main</title>
 </head><body>
-
-<div class='journal-banner'>
-  <div class='left'>Science Immunology&nbsp;|&nbsp;Research Article</div>
-  <div class='right'>HCC Immunotherapy · Integrated Atlas · 2026</div>
-</div>
-
 
 <h1 class='title'>Genomic instability shapes spatial immune architecture and predicts checkpoint-immunotherapy response in hepatocellular carcinoma</h1>
 
 <p class='authors'>
-Iman Sadeghi<sup>1,*</sup>
+Iman Sadeghi<sup>1</sup>, Bertram Bengsch<sup>1</sup>
 </p>
 
 <p class='affiliations'>
-<sup>1</sup> Institute for Immunology, Spatial Multi-omics Group, Bengsch Laboratory, Germany.<br>
-<sup>*</sup> Corresponding author. Email: iman.sadeghi@example.org
+<sup>1</sup> Clinic for Internal Medicine II, Freiburg University Medical Center, Freiburg im Breisgau, Germany.
 </p>
 
 <p class='one-sentence-summary'><strong>One-sentence summary:</strong> An integrated ~970 000-cell single-cell and spatial atlas of hepatocellular carcinoma immunotherapy nominates clonal heterogeneity, a CCL5/NKG7 cytotoxic T-cell program, and composite spatial-immune topology as complementary predictors of ICB benefit.</p>
@@ -60,7 +53,7 @@ composite spatial-immune topology as complementary predictors of ICB
 benefit.</p>
 <hr />
 </div>
-
+<div class='two-col'>
 <h2 id="introduction">1. Introduction</h2>
 <p>Hepatocellular carcinoma (HCC) is the third leading cause of
 cancer-related death worldwide and the most rapidly rising cause of
@@ -433,7 +426,14 @@ distributed with the pipeline; source code is available at
 <strong>https://github.com/isadeghi87/spatial_immunotherapy_response</strong>
 under the MIT license.</p>
 <hr />
-<div class='references'><h2 id="references">6. References</h2>
+</div>
+<section class='figures-section'><figure class='manuscript-figure'><img src='file:///data/projects/spatial_immunotherapy_response/out/06_manuscript_figures/Figure1_atlas_landscape.png' alt='Fig. 1. Integrated single-cell atlas of HCC immunotherapy.' /><figcaption><strong>Fig. 1. Integrated single-cell atlas of HCC immunotherapy.</strong> UMAP of 970,632 cells coloured by dataset, cell type, tissue and response; cohort composition; batch-effect silhouette before / after Harmony.</figcaption></figure>
+<figure class='manuscript-figure'><img src='file:///data/projects/spatial_immunotherapy_response/out/06_manuscript_figures/Figure2_tumour_intrinsic.png' alt='Fig. 2. Tumour-intrinsic axis of response (CNV + CD8 states).' /><figcaption><strong>Fig. 2. Tumour-intrinsic axis of response (CNV + CD8 states).</strong> Per-patient CNV mean vs. standard deviation by response; CD8 state composition split by R/NR; state-level effect sizes with BH-padj.</figcaption></figure>
+<figure class='manuscript-figure'><img src='file:///data/projects/spatial_immunotherapy_response/out/06_manuscript_figures/Figure3_immune_engagement.png' alt='Fig. 3. Immune engagement and hallmark pathways.' /><figcaption><strong>Fig. 3. Immune engagement and hallmark pathways.</strong> 20-pathway R-vs-NR effect heatmap; top-10 ligand–receptor dotplot across sender–receiver pairs; CD8 activation–exhaustion scatter.</figcaption></figure>
+<figure class='manuscript-figure'><img src='file:///data/projects/spatial_immunotherapy_response/out/06_manuscript_figures/Figure4_spatial_axis.png' alt='Fig. 4. Spatial axis: NMF9, TLS and Visium projection.' /><figcaption><strong>Fig. 4. Spatial axis: NMF9, TLS and Visium projection.</strong> Visium sections (GSE238264) coloured by NMF9 and TLS score; cross-cohort signature robustness across Visium cohorts.</figcaption></figure>
+<figure class='manuscript-figure'><img src='file:///data/projects/spatial_immunotherapy_response/out/06_manuscript_figures/Figure5_nmf_integrator.png' alt='Fig. 5. NMF integrator across scRNA / bulk / Visium.' /><figcaption><strong>Fig. 5. NMF integrator across scRNA / bulk / Visium.</strong> Program × patient activity heatmap with response annotation; NMF9 top-gene loadings and volcano of response stats; projected activity in bulk and Visium.</figcaption></figure>
+<figure class='manuscript-figure'><img src='file:///data/projects/spatial_immunotherapy_response/out/06_manuscript_figures/Figure6_multilayer_predictor.png' alt='Fig. 6. Five-layer predictor.' /><figcaption><strong>Fig. 6. Five-layer predictor.</strong> Per-layer LOOCV ROC curves (L1–L5 + ensemble); LASSO-selected features and variance partition; balanced cumulative AUC as layers are added.</figcaption></figure></section>
+<div class='references two-col'><h2 id="references">6. References</h2>
 <ol type="1">
 <li>Sung H, Ferlay J, Siegel RL, et al. Global Cancer Statistics 2020.
 <em>CA Cancer J Clin</em> 2021;71:209–249.</li>
@@ -574,53 +574,5 @@ and <code>nmf_top_genes_per_program.csv</code>. NMF9 R-enriched (effect
 in <code>out/</code> (see individual references in main text). S12 =
 patient demographics; S13 = sample overview; S14 = cohort summary.</p>
 <hr />
-<h2 id="figure-legends">Figure legends</h2>
-<p><strong>Figure 1 | Integrated single-cell atlas of HCC
-immunotherapy.</strong> (a) UMAP of 970,632 cells coloured by dataset,
-cell type, tissue and response. (b) Cohort composition. (c) Batch-effect
-silhouette before / after Harmony. (File:
-<code>Figure1_atlas_landscape.png</code>)</p>
-<p><strong>Figure 2 | Tumour-intrinsic axis of response (CNV + CD8
-states).</strong> (a) Per-patient CNV mean vs standard deviation by
-response. (b) CD8 state composition split by R / NR. (c) State-level
-effect sizes with BH-padj. (File:
-<code>Figure2_tumour_intrinsic.png</code>)</p>
-<p><strong>Figure 3 | Immune engagement and hallmark pathways.</strong>
-(a) 20-pathway R-vs-NR effect heatmap. (b) Top-10 ligand–receptor
-dotplot across sender–receiver pairs. (c) CD8 activation–exhaustion
-scatter. (File: <code>Figure3_immune_engagement.png</code>)</p>
-<p><strong>Figure 4 | Spatial axis: NMF9, TLS and Visium
-projection.</strong> (a) Visium sections (GSE238264) coloured by NMF9
-and TLS score; R sections show co-localized hubs. (b) Cross-cohort
-signature robustness across Visium cohorts. (File:
-<code>Figure4_spatial_axis.png</code>)</p>
-<p><strong>Figure 5 | NMF integrator across scRNA / bulk /
-Visium.</strong> (a) Program × patient activity heatmap with response
-annotation. (b) NMF9 top-gene loadings and volcano of response stats.
-(c) Projected activity in bulk and Visium. (File:
-<code>Figure5_nmf_integrator.png</code>)</p>
-<p><strong>Figure 6 | Five-layer predictor.</strong> (a) Per-layer LOOCV
-ROC curves (L1–L5 + ensemble). (b) LASSO-selected features and variance
-partition. (c) Balanced cumulative AUC as layers are added. (File:
-<code>Figure6_multilayer_predictor.png</code>)</p>
-<p><strong>Extended Data Fig. 1 | CNV genomic instability.</strong>
-Per-patient InferCNV summaries and clonal-heterogeneity distributions.
-(File: <code>ExtendedData_Fig1_CNV_genomic_instability.png</code>)</p>
-<p><strong>Extended Data Fig. 2 | Regulon activity and cell–cell
-communication.</strong> (File:
-<code>ExtendedData_Fig2_regulon_communication.png</code>)</p>
-<p><strong>Extended Data Fig. 3 | High-contrast spatial biomarker
-maps.</strong> Hypoxia, CD8 exhaustion, M1−M2 polarity, IO response on
-the UMAP and on Visium coordinates. (File:
-<code>ExtendedData_Fig3_high_contrast_spatial.png</code>)</p>
-<p><strong>Extended Data Fig. 4 | Bulk trial validation (IMbrave150 /
-CheckMate-459).</strong> Deconvolved CD8-effector / Treg ratio
-stratifies IMbrave150 PFS (log-rank p = 0.031). (File:
-<code>ExtendedData_Fig4_bulk_trial_validation.png</code>)</p>
-<p><strong>Supplementary Figures S1–S9.</strong> S1 atlas QC; S2 immune
-UMAPs; S3 marker annotation; S4 spatial diagnostics; S5 cross-cohort
-Visium; S6 signature stability; S7 reproducibility; S8 patient
-subtyping; S9 patient and cohort demographics. (Files:
-<code>SupplementaryFig_S{1..9}_*.png</code>)</p>
 </div>
 </body></html>

@@ -1,0 +1,122 @@
+name: Submit HPC Job
+
+# ============================================================================
+# Cross-repo HPC trigger workflow
+# Place this file in:  .github/workflows/submit-hpc-job.yml
+# inside each private repo (spatial_immunotherapy_response, TME_analysis, etc.)
+#
+# Prerequisites in each private repo:
+#   Settings → Secrets and variables → Actions → New repository secret
+#   Name:  HPC_DISPATCH_TOKEN
+#   Value: a GitHub Personal Access Token (PAT) for isadeghi87
+#          with scope: repo  (to dispatch workflows on a private repo)
+#   Create PAT at: https://github.com/settings/tokens/new
+#   (Classic PAT, scope: repo — or fine-grained with contents:read and actions:write
+#    on isadeghi87/hpc-launcher)
+# ============================================================================
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_name:
+        description: "Slurm job name (letters, digits, hyphens, underscores)"
+        required: true
+        type: string
+
+      command:
+        description: >
+          Shell command to run on the HPC server.
+          Example: bash /data/projects/spatial_immunotherapy_response/run_analysis.sh
+        required: true
+        type: string
+
+      workdir:
+        description: >
+          Working directory on the server (must be under /data/projects).
+          Default: the corresponding project directory for this repo.
+        required: false
+        default: "/data/projects/spatial_immunotherapy_response"
+        type: string
+
+      partition:
+        description: "Slurm partition"
+        required: false
+        default: "ag_bengsch"
+        type: string
+
+      time_limit:
+        description: "Wall-clock time limit (HH:MM:SS)"
+        required: false
+        default: "04:00:00"
+        type: string
+
+jobs:
+  dispatch-to-hpc-launcher:
+    name: Dispatch to HPC Launcher
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate inputs
+        run: |
+          set -euo pipefail
+          JOB_NAME="${{ inputs.job_name }}"
+          if [[ ! "${JOB_NAME}" =~ ^[a-zA-Z0-9_-]{1,64}$ ]]; then
+            echo "ERROR: job_name must be letters/digits/hyphens/underscores, max 64 chars"
+            exit 1
+          fi
+          echo "Inputs validated."
+          echo "  Repo:     ${{ github.repository }}"
+          echo "  Job:      ${JOB_NAME}"
+          echo "  Command:  ${{ inputs.command }}"
+          echo "  Workdir:  ${{ inputs.workdir }}"
+
+      - name: Dispatch to isadeghi87/hpc-launcher
+        run: |
+          set -euo pipefail
+          echo "Sending repository_dispatch to isadeghi87/hpc-launcher..."
+
+          HTTP_STATUS=$(curl -s -o /tmp/dispatch_response.json -w "%{http_code}" \
+            --request POST \
+            --url "https://api.github.com/repos/isadeghi87/hpc-launcher/dispatches" \
+            --header "Authorization: Bearer ${{ secrets.HPC_DISPATCH_TOKEN }}" \
+            --header "Accept: application/vnd.github+json" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            --header "Content-Type: application/json" \
+            --data '{
+              "event_type": "slurm-submit",
+              "client_payload": {
+                "job_name":     "${{ inputs.job_name }}",
+                "command":      "${{ inputs.command }}",
+                "workdir":      "${{ inputs.workdir }}",
+                "partition":    "${{ inputs.partition }}",
+                "time_limit":   "${{ inputs.time_limit }}",
+                "calling_repo": "${{ github.repository }}"
+              }
+            }')
+
+          echo "HTTP status: ${HTTP_STATUS}"
+
+          if [[ "${HTTP_STATUS}" == "204" ]]; then
+            echo "Dispatch accepted by GitHub (HTTP 204)."
+          else
+            echo "ERROR: Unexpected response (HTTP ${HTTP_STATUS})"
+            cat /tmp/dispatch_response.json
+            exit 1
+          fi
+
+      - name: Instructions for monitoring
+        run: |
+          echo "## Job Dispatched to HPC" >> "${GITHUB_STEP_SUMMARY}"
+          echo "" >> "${GITHUB_STEP_SUMMARY}"
+          echo "| Field | Value |" >> "${GITHUB_STEP_SUMMARY}"
+          echo "|---|---|" >> "${GITHUB_STEP_SUMMARY}"
+          echo "| Job Name | \`${{ inputs.job_name }}\` |" >> "${GITHUB_STEP_SUMMARY}"
+          echo "| Calling Repo | \`${{ github.repository }}\` |" >> "${GITHUB_STEP_SUMMARY}"
+          echo "| Dispatched To | \`isadeghi87/hpc-launcher\` |" >> "${GITHUB_STEP_SUMMARY}"
+          echo "" >> "${GITHUB_STEP_SUMMARY}"
+          echo "Monitor at: https://github.com/isadeghi87/hpc-launcher/actions" >> "${GITHUB_STEP_SUMMARY}"
+          echo "" >> "${GITHUB_STEP_SUMMARY}"
+          echo "Or from the server / your laptop:" >> "${GITHUB_STEP_SUMMARY}"
+          echo "\`\`\`" >> "${GITHUB_STEP_SUMMARY}"
+          echo "./hpc.sh list --limit 5" >> "${GITHUB_STEP_SUMMARY}"
+          echo "\`\`\`" >> "${GITHUB_STEP_SUMMARY}"

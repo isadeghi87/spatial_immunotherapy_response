@@ -6,6 +6,414 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-green)
 ![Status](https://img.shields.io/badge/Status-Active-brightgreen)
 
+This repository contains a reproducible multi-modal analysis pipeline for hepatocellular carcinoma immunotherapy response. It now spans a harmonized single-cell atlas, held-out scRNA-seq transfer validation, Visium spatial projection, trial-adjacent clinical validation, InferCNV-based tumour-intrinsic modeling, NMF/regulon programs, and manuscript-grade figure assembly.
+
+The current manuscript resource comprises **1,058,964 cells x 15,697 genes** across five HCC scRNA-seq cohorts plus a non-tumour liver reference. The main discovery task is trained on the **24 anti-PD-1-treated GSE206325 patients** (7 Responders, 17 Non-Responders) and externally tested on the **32 response-evaluable Cappuyns atezolizumab + bevacizumab patients** (19 R, 13 NR).
+
+---
+
+## Highlights
+
+| Area | Current scope |
+|------|---------------|
+| **Atlas scale** | **1,058,964 cells x 15,697 genes** in the integrated atlas/manuscript resource |
+| **Discovery cohort** | 24 labeled anti-PD-1 patients from **GSE206325** |
+| **External transfer cohort** | 32 evaluable atezo+bev patients from **Cappuyns et al. 2023** |
+| **Spatial cohorts** | **GSE173905**, **GSE238264**, plus staged multi-region resource **GSE281759** |
+| **Feature layers** | CNV, regulons, cell-type composition, 16 IO signatures, 10 NMF programs |
+| **Baseline predictive models** | `03_validation_downstream.py`: LASSO AUC **0.966**, RF AUC **0.941** |
+| **Clinical transfer** | IMbrave150 CD8 arm-specific survival interaction; CheckMate-459 metadata support |
+| **Reproducibility** | Structured outputs, SLURM dependency chains, manuscript builders, and `results_index.yaml` |
+
+---
+
+## Recent Additions (April 2026)
+
+- **Expanded spatial transcriptomics coverage:** added **GSE238264** and **GSE281759** alongside the original **GSE173905** Visium resource.
+- **SPATA2 R workflows:** added `scripts/02_analysis/02b_spata2_spatial_reanalysis.R` and `scripts/02_analysis/02g_spata2_spatial_cnv.R` for spatial remapping, pooled reference banking, and CNV-aware tissue projection.
+- **Cappuyns external validation pipeline:** added `02i_cappuyns_signature_scoring.py`, `02j_cappuyns_concordance.py`, `02k_cappuyns_spatial_integration.py`, plus `03c_cappuyns_validation.py` and the dedicated SLURM launcher `slurm/run_cappuyns_pipeline.sh`.
+- **Multi-layer modeling framework:** added the full `scripts/05_multilayer/` stage for balanced cross-layer benchmarking, permutation nulls, CNV-program linkage, mediation analyses, and transfer diagnostics.
+- **Reframed figure system:** added `scripts/06_reframe/`, `build_f2.py`, `build_graphical_abstract.py`, and `build_reframe_figures.py` for manuscript-ready, audit-friendly figure generation.
+- **Expanded data staging:** repository now includes the combination-therapy cohort **GSE234241** under `data/pre_treatment/` for downstream extension work.
+
+---
+
+## Data Inventory
+
+### Single-cell RNA-seq
+
+| Dataset | Role | Patients | Cells | Notes |
+|--------|------|----------|-------|-------|
+| **GSE206325** | Primary discovery cohort | 24 labeled discovery patients within 30 total | ~682k | anti-PD-1, paired tumour tissue, scRNA + TCR |
+| **Cappuyns 2023** | External transfer validation | 32 evaluable (19 R / 13 NR) out of 38 advanced HCC patients | 87,002 QC-passed cells | atezolizumab + bevacizumab, week-0 pre-treatment biopsies |
+| **GSE125449** | Atlas expansion | 8 | ~10k | treatment-naive HCC landscape |
+| **GSE140228** | Atlas expansion | not response-labeled | ~67k | CD45+ immune-enriched HCC |
+| **GSE149614** | Atlas expansion | not response-labeled | ~70k | multi-region / ecosystem context |
+| **E-MTAB-10553** | Non-tumour liver reference | reference only | reference cohort | healthy / cirrhotic liver context, not used for response inference |
+| **GSE234241** | Staged additional cohort | staged | staged | combo-therapy pre-treatment resource present in `data/pre_treatment/` |
+
+### Spatial transcriptomics
+
+| Dataset | Role | Notes |
+|--------|------|-------|
+| **GSE173905** | Baseline Visium / pseudo-bulk spatial resource | original spatial scoring and pseudo-bulk analyses |
+| **GSE238264** | Active responder/non-responder Visium cohort | 4 Responders and 3 Non-Responders used for projection and spatial coherence analyses |
+| **GSE281759** | Multi-region spatial extension | staged multi-region HCC spatial resource for expanded topology work |
+
+### Bulk and trial-adjacent cohorts
+
+| Dataset | Role | Notes |
+|--------|------|-------|
+| **GSE202069** | Bulk RNA-seq validation | anti-PD-L1 validation cohort |
+| **IMbrave150** | Clinical transfer analysis | per-patient intratumoural CD8 IHC and arm-stratified survival analyses |
+| **CheckMate-459** | Trial metadata support | supplementary trial-linked metadata/resources |
+
+---
+
+## Pipeline Overview
+
+The active analysis stack is broader than the older 4-step layout. The current repo is best understood as seven working stages.
+
+### 00. Data acquisition and conversion
+
+- `scripts/00_data_acquisition/download_io_datasets.py`: GEO download for primary public scRNA cohorts.
+- `scripts/00_data_acquisition/download_additional_data.sh`: staged download of E-MTAB-10553, spatial resources, and trial inputs.
+- `scripts/00_data_acquisition/download_cappuyns_data.sh`: Cappuyns-specific acquisition helper.
+- `scripts/00_data_acquisition/convert_rda_to_h5ad.R`: convert GSE206325 source objects to matrix-form inputs.
+- `scripts/00_data_acquisition/00b_convert_emtab10553.R`: convert E-MTAB-10553 reference data.
+
+### 01. Preprocessing and atlas integration
+
+- `scripts/01_preprocessing/01_preprocess_integrate.py`: QC, normalization, HVG selection, PCA, Harmony, neighbors, UMAP, Leiden.
+- `scripts/01_preprocessing/01c_batch_effect_diagnostics.py`: post-integration batch diagnostics.
+- `scripts/01_preprocessing/01d_scvi_benchmark.py`: SCVI benchmarking utilities.
+- `scripts/01_preprocessing/regen_umap.py`: refreshed major/subtype UMAP rendering.
+
+### 02. Core analyses
+
+- `02a_response_tme_characterization.py`: response-linked TME composition, 16 IO signatures, DEGs, tissue-aware summaries.
+- `02b_spata2_spatial_reanalysis.R`: SPATA2-based spatial remapping.
+- `02b_spatial_biomarker_discovery.py`: pseudo-bulk spatial biomarker analysis.
+- `02b_spatial_visium_analysis.py`: Visium projection and section-level analytics.
+- `02b_visium_celltype_umap.py`: Visium cell-type embedding/projection utilities.
+- `02b_visium_downstream.py`: section/program scoring and downstream Visium summaries.
+- `02b_improve_spatial_plots.py`: improved spatial plotting outputs.
+- `02c_bulk_deconvolution.py`: CIBERSORTx-style reference construction and NNLS bulk deconvolution.
+- `02d_exploratory_data_analysis.py`: EDA figures and diagnostics.
+- `02e_spatial_topology.py`: immune topology and gradient analyses.
+- `02f_regulon_tf_networks.py`: regulon / TF program analyses.
+- `02g_infercnv.py`: expression-derived CNV calling and clone summaries.
+- `02g_spata2_spatial_cnv.R`: spatial CNV projection with SPATA2.
+- `02h_cnv_tme_integration.py`: CNV-TME coupling, pathway overlays, hazard-linked integration.
+- `02i_cappuyns_signature_scoring.py`: external cohort signature scoring.
+- `02j_cappuyns_concordance.py`: subtype concordance against Cappuyns molecular labels.
+- `02k_cappuyns_spatial_integration.py`: projection of external validation cohort into the spatial/atlas framework.
+
+### 03. Validation
+
+- `03_validation_downstream.py`: patient-level modeling, bootstrap CIs, NMF benchmarking, validation tables.
+- `03b_clinical_survival.py`: IMbrave150 survival modeling and interaction analyses.
+- `03c_cappuyns_validation.py`: locked cross-regimen validation.
+- `03d_spatial_spot_qc.py`: spot-level QC for spatial analyses.
+
+### 04. Complementary biology modules
+
+- `04_complementary_analyses.py`: Hallmark pathways, LR programs, CD8 states, diversity, subtype summaries.
+- `04b_comprehensive_discoveries.py`: synthesis module across communication, trial, and complementary outputs.
+- `04c_tcell_trajectories.py`: pseudotime / trajectory modeling.
+- `04d_cell_communication.py`: cell-cell communication.
+- `04e_tcr_dynamics.py`: clonotype tracking.
+- `04f_metabolic_reprogramming.py`: metabolic program scoring.
+- `04g_tls_spatial_hubs.py`: TLS hub detection.
+- `04h_spatial_high_contrast_maps.py`: high-contrast spatial signature maps.
+- `04i_trajectory_response.py`: response-linked trajectory analyses.
+
+### 05. Multi-layer response modeling
+
+The `scripts/05_multilayer/` directory is one of the largest recent additions and now contains the cross-layer benchmarking framework used in the reframe analyses.
+
+- `05a_multilayer_features.py`: assemble L1-L5 patient-level feature matrices.
+- `05b_nmf_programs.py`: NMF program extraction and k-scan.
+- `05c_multilayer_predictor.py`: per-layer LOOCV benchmarking.
+- `05d_balanced_predictor.py`: balanced 15-feature ensemble.
+- `05e_polished_figures.py`: publication-facing performance figures.
+- `05f_revision_analyses.py` through `05l_cnv_exhaustion_spatial_mediation.py`: revision, linkage, transfer, null, and mediation analyses.
+- `scripts/03_response_modeling/05m_lasso_C_sensitivity.py`: hyperparameter sensitivity companion script.
+
+### 06. Figure building and manuscript assembly
+
+- `scripts/06_figures/06_compile_main_figures.py`: main figure assembly.
+- `scripts/06_figures/06_compile_extended_data.py`: extended-data compilation.
+- `scripts/06_figures/06_compile_supplementary_figures.py`: supplementary figure assembly.
+- `scripts/06_figures/06_compile_supplementary_tables.py`: supplementary table assembly.
+- `scripts/06_figures/06r_reframe_figure_builder.py`: reframe-aware figure build path.
+- `scripts/06_figures/06s_patient_demographics.py`: cohort demographics outputs.
+
+### 06_reframe. Reframed figure analyses
+
+- `scripts/06_reframe/06a_reconcile_units.py`
+- `scripts/06_reframe/06b_discovery_transfer_pooled.py`
+- `scripts/06_reframe/06c_spatial_module_loso.py`
+- `scripts/06_reframe/06d_imbrave150_reframe.py`
+
+These support the revised narrative around discovery performance, transfer failure, spatial support, and arm-specific clinical validation.
+
+---
+
+## Repository Layout
+
+```text
+spatial_immunotherapy_response/
+├── config/                     # shared styling/config helpers
+├── data/                       # raw, staged, trial, and processed inputs
+├── docs/                       # manuscript, supplementary, methods, HTML/PDF builds
+├── prompts/                    # analysis and writing prompts
+├── scripts/
+│   ├── 00_data_acquisition/
+│   ├── 01_preprocessing/
+│   ├── 02_analysis/
+│   ├── 03_validation/
+│   ├── 04_complementary/
+│   ├── 05_multilayer/
+│   ├── 06_figures/
+│   └── 06_reframe/
+├── slurm/                      # cluster launchers and dependency chains
+├── build_f2.py                 # top-level figure helper
+├── build_graphical_abstract.py # graphical abstract builder
+├── build_reframe_figures.py    # reframe figure builder
+├── generate_all.py             # lightweight scaffold for out/06_reframe/figures
+├── environment.yaml            # conda environment
+├── Makefile                    # convenience entrypoints for core pipeline stages
+└── results_index.yaml          # structured analytical contract / results index
+```
+
+Legacy directories such as `scripts/02_immunotyping/`, `scripts/03_response_modeling/`, and `scripts/04_biomarker_discovery/` are present in the tree but are not the primary active entrypoints for the current manuscript pipeline.
+
+---
+
+## Reproducibility Contract
+
+`results_index.yaml` is the central analytical registry for the project. It records, per result:
+
+- biological/analytical question
+- modality and comparison
+- inputs and sample unit
+- statistical method and multiple-testing policy
+- primary output files under `out/**`
+- QC status
+- effect-size and significance summaries
+- interpretation status and strength class
+- manuscript priority and figure candidacy
+- caveats
+
+The file header explicitly states that values are sourced from `out/**/tables/` and should not be edited independently of the underlying analysis outputs.
+
+All major outputs are written under `out/`, typically as:
+
+- `out/<stage>/tables/` for machine-readable summaries
+- `out/<stage>/figures/` for plot panels and composites
+- `out/06_reframe/` and `out/06_manuscript_figures/` for figure-system and manuscript builds
+
+---
+
+## Headline Findings
+
+These are the main findings currently reflected by the active analysis/manuscript stack.
+
+### Discovery performance
+
+| Analysis | Result |
+|---------|--------|
+| Baseline patient-level models | `03_validation_downstream.py`: LASSO AUC **0.966**, RF AUC **0.941** |
+| Multi-layer discovery benchmarking | strong discovery performance for L3 composition and L5 NMF layers in the 24-patient GSE206325 cohort |
+| NMF program scan | k scanned over **{5, 7, 10, 12, 15, 20}**, with **k=10** selected in the manuscript/reframe workflow |
+
+### Cross-regimen transfer and clinical validation
+
+- Held-out Cappuyns validation shows that strong discovery performance does **not** automatically transfer across regimens.
+- The manuscript reports that the discovery-leading **L3 composition** model collapses to chance in Cappuyns (**validation ROC-AUC = 0.50**), while **L5 NMF** shows modest transfer (**ROC-AUC = 0.69**, 95% CI 0.49-0.86).
+- IMbrave150 CD8 IHC stratifies **PFS in the atezolizumab + bevacizumab arm** but not the sorafenib arm, supporting arm-specific clinical transfer rather than universal biomarker portability.
+
+### Mechanistic signals under active support
+
+- **CNV clone diversity** is prioritized over mean CNV burden as the more informative tumour-intrinsic non-response signal in the reframe analysis.
+- Response-associated immune states include cytotoxic / dysfunctional-effector CD8 programs, while spatial and TLS analyses provide orthogonal tissue-context support.
+- Regulon, LR, metabolic, TCR, and spatial modules remain available as complementary layers rather than being forced into a single overclaimed narrative.
+
+---
+
+## Installation
+
+### Requirements
+
+- Python 3.11
+- R 4.3+
+- Conda or Mamba
+- SLURM for full-cluster execution
+- High-memory environment for atlas integration (the SLURM scripts assume up to ~200 GB for preprocessing)
+
+### Setup
+
+```bash
+git clone https://github.com/isadeghi87/spatial_immunotherapy_response.git
+cd spatial_immunotherapy_response
+
+conda env create -f environment.yaml
+conda activate spatial_io_response
+```
+
+If you run the R-based SPATA2 modules directly, ensure the required R packages are installed in the R environment used by the scripts.
+
+---
+
+## Running the Pipeline
+
+### Recommended SLURM entrypoints
+
+Use the standard dependency chain for the core atlas workflow:
+
+```bash
+bash slurm/run_full_pipeline.sh
+bash slurm/run_full_pipeline.sh --skip-env
+bash slurm/run_full_pipeline.sh --skip-env --skip-convert
+```
+
+Use the extended dependency chain when you want the Cappuyns validation and multilayer stages:
+
+```bash
+bash slurm/run_cappuyns_pipeline.sh
+```
+
+`run_cappuyns_pipeline.sh` submits the following 8-step chain:
+
+1. preprocess + integrate
+2. TME characterization
+3. InferCNV
+4. complementary analyses
+5. validation downstream
+6. multilayer predictor
+7. Cappuyns external validation
+8. final figures
+
+### Individual SLURM jobs
+
+```bash
+sbatch slurm/00_setup_env.sh
+sbatch slurm/01_convert_data.sh
+sbatch slurm/02_preprocess_integrate.sh
+sbatch slurm/03a_response_tme.sh
+sbatch slurm/03b_spatial_biomarkers.sh
+sbatch slurm/03c_bulk_deconv.sh
+sbatch slurm/03d_infercnv.sh
+sbatch slurm/04_validation.sh
+sbatch slurm/05_complementary.sh
+sbatch slurm/06_multilayer.sh
+sbatch slurm/07_cappuyns_validation.sh
+sbatch slurm/08_final_figures.sh
+```
+
+### Make targets
+
+The `Makefile` is a convenience layer for the core stages and is still useful for local orchestration:
+
+```bash
+make all
+make analysis
+make validation
+make complementary
+make figures
+make supplementary
+make clean
+```
+
+Note that the current `Makefile` does **not** cover the full `05_multilayer/`, `06_reframe/`, or extended Cappuyns SLURM chain. For those, use the SLURM launchers or direct script execution.
+
+### Direct script execution
+
+Python entrypoints:
+
+```bash
+python scripts/01_preprocessing/01_preprocess_integrate.py
+python scripts/02_analysis/02a_response_tme_characterization.py
+python scripts/02_analysis/02c_bulk_deconvolution.py
+python scripts/03_validation/03_validation_downstream.py
+python scripts/03_validation/03b_clinical_survival.py
+python scripts/04_complementary/04_complementary_analyses.py
+python scripts/05_multilayer/05c_multilayer_predictor.py
+python scripts/05_multilayer/05d_balanced_predictor.py
+python scripts/06_figures/06_compile_main_figures.py
+python build_graphical_abstract.py
+python build_reframe_figures.py
+```
+
+R entrypoints:
+
+```bash
+Rscript scripts/00_data_acquisition/convert_rda_to_h5ad.R
+Rscript scripts/00_data_acquisition/00b_convert_emtab10553.R
+Rscript scripts/02_analysis/02b_spata2_spatial_reanalysis.R
+Rscript scripts/02_analysis/02g_spata2_spatial_cnv.R
+```
+
+---
+
+## Key Output Locations
+
+| Path | Contents |
+|------|----------|
+| `out/01_preprocessing/` | integrated atlas QC, UMAPs, clustering summaries |
+| `out/02*/` | core analysis tables and figures |
+| `out/03_validation/` | predictive models, bootstrap summaries, clinical validation outputs |
+| `out/04_complementary/` | pathways, TCR, LR, TLS, metabolic, trajectory outputs |
+| `out/05_multilayer/` | layered feature tables, ROC summaries, null distributions, mediation outputs |
+| `out/06_reframe/` | figure-system reframe outputs and tables |
+| `out/06_manuscript_figures/` | manuscript-facing composite figures and graphical abstract outputs |
+
+---
+
+## Manuscript and Documentation
+
+The manuscript-facing documentation lives under `docs/`.
+
+- Main manuscript: `docs/manuscript.md`
+- Supplementary text: `docs/supplementary.md`
+- Materials and methods companion: `docs/materials_and_methods.md`
+- Science Immunology-styled HTML/PDF builds: `docs/manuscript_sci_immunol.html`, `docs/supplementary_sci_immunol.html`, and related PDF artifacts
+- Graphical abstract audit: `docs/graphical_abstract_audit.md`
+
+Top-level builders used in the current documentation/figure system include:
+
+- `build_f2.py`
+- `build_graphical_abstract.py`
+- `build_reframe_figures.py`
+
+---
+
+## License
+
+MIT License. See `LICENSE`.
+
+## Citation
+
+```bibtex
+@article{sadeghi2026spatial,
+  title   = {Spatial Biomarkers of Immunotherapy Response in Hepatocellular Carcinoma},
+  author  = {Sadeghi, Iman},
+  year    = {2026},
+  note    = {Manuscript in preparation}
+}
+```
+
+## Contact
+
+Iman Sadeghi — https://github.com/isadeghi87# Spatial Biomarkers of Immunotherapy Response in HCC
+
+![Python](https://img.shields.io/badge/Python-3.11-blue)
+![R](https://img.shields.io/badge/R-4.3%2B-276DC3)
+![scanpy](https://img.shields.io/badge/scanpy-1.11-orange)
+![License: MIT](https://img.shields.io/badge/License-MIT-green)
+![Status](https://img.shields.io/badge/Status-Active-brightgreen)
+
 > Defining spatial immune topology biomarkers that predict response vs. resistance
 > to anti-PD-1 / anti-PD-L1 checkpoint immunotherapy in hepatocellular carcinoma (HCC),
 > using the largest integrated single-cell atlas of HCC immunotherapy to date (~970 k cells).
@@ -64,6 +472,10 @@ this project with the current state of the field.
 
 ## Recent Updates (April 2026)
 
+*   **Expanded Spatial Transcriptomics:** Integrated new multi-region and IO-specific Visium spatial datasets (`GSE238264` and `GSE281759`), enhancing our spatial mapping capabilities beyond the baseline `GSE173905`.
+*   **SPATA2 Spatial Analysis Pipeline (`02b_spata2_spatial_reanalysis.R` & `02g_spata2_spatial_cnv.R`):** Added advanced spatial mapping and CNV tracking pipelines in R leveraging the SPATA2 framework. This powers high-resolution structural gradients, pooled reference banking for copy number variations, and cross-tissue reference inferences.
+*   **Expanded Pre-treatment Cohorts:** Integrated `GSE234241` (combination IO) into the comprehensive atlas to broaden the multi-modal HCC ecosystem and validate predictive performance across deeper combination therapies.
+*   **Cappuyns Validation Sub-pipeline (`02i`-`02k`):** Built out full signature scoring (`02i_cappuyns_signature_scoring.py`), concordance matrices (`02j_cappuyns_concordance.py`), and spatial integration projections (`02k_cappuyns_spatial_integration.py`) utilizing the Lambrechts lab validation cohort.
 *   **Standardized Cell Type Annotations:** Cleaned up numerical prefixes and variation names across all immune subsets (converging variants into single categories like `NK` and `CD8-Memory`).
 *   **Major/Subtype UMAP Representations:** Added major and subtype-specific immune UMAPs isolating non-immune tissues to high-contrast grey (`#E0E0E0`) within the `regen_umap.py` script.
 *   **InferCNV Integration (`02g_infercnv.py`):** Added chromosomal copy number variation tracking using CD4-Memory and NK cells as references to identify and pinpoint malignant clones. Enhanced visualizations directly map horizontal genomic ranges (Chr 1-22) against malignant clone fractions.

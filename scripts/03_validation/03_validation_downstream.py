@@ -23,12 +23,15 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import seaborn as sns
+import sys; sys.path.insert(0, str(__import__('pathlib').Path(__file__).resolve().parents[2]))
+from config.publication_style import apply_style, PAL, CMAP, label_clean
+apply_style()
 from pathlib import Path
 from scipy.stats import mannwhitneyu, spearmanr, pearsonr, kruskal
 from scipy.cluster.hierarchy import linkage, dendrogram, leaves_list
 from sklearn.linear_model import LogisticRegressionCV
 from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import StratifiedKFold, LeaveOneOut
 from sklearn.metrics import (roc_auc_score, roc_curve, classification_report,
                              balanced_accuracy_score, confusion_matrix)
 from sklearn.decomposition import NMF
@@ -109,8 +112,8 @@ def build_patient_features(adata):
 
 
 def lasso_response_model(patient_df):
-    """LASSO logistic regression for response prediction."""
-    print("\n[LASSO] Building IO response predictor...")
+    """LASSO logistic regression for response prediction with LOOCV."""
+    print("\n[LASSO] Building IO response predictor (LOOCV)...")
 
     y = (patient_df["response"] == "Responder").astype(int).values
     feature_cols = [c for c in patient_df.columns
@@ -120,46 +123,58 @@ def lasso_response_model(patient_df):
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
 
-    # Stratified k-fold
-    n_splits = min(5, min(y.sum(), (1-y).sum()))
-    if n_splits < 2:
+    n = len(y)
+    if n < 10:
         print("  [WARN] Not enough samples for cross-validation")
         return None, None, None
 
-    cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
+    # ── LOOCV for unbiased out-of-fold predictions ─────────────────
+    loo = LeaveOneOut()
+    inner_cv = StratifiedKFold(n_splits=min(5, min(y.sum(), (1-y).sum())),
+                               shuffle=True, random_state=42)
 
-    # LASSO logistic regression with CV
-    model = LogisticRegressionCV(
-        Cs=np.logspace(-3, 1, 20), cv=cv, penalty="l1", solver="saga",
-        scoring="roc_auc", max_iter=5000, class_weight="balanced", random_state=42
-    )
-    model.fit(X_scaled, y)
-
-    # Feature importance
-    coefs = pd.DataFrame({
-        "feature": feature_cols,
-        "coefficient": model.coef_[0],
-        "abs_coef": np.abs(model.coef_[0]),
-    }).sort_values("abs_coef", ascending=False)
-
-    # Cross-validated predictions
-    y_proba_cv = np.zeros(len(y))
-    for train_idx, test_idx in cv.split(X_scaled, y):
+    y_proba_cv = np.zeros(n)
+    for train_idx, test_idx in loo.split(X_scaled):
         m = LogisticRegressionCV(
-            Cs=np.logspace(-3, 1, 20), cv=3, penalty="l1", solver="saga",
+            Cs=np.logspace(-3, 1, 20), cv=inner_cv, penalty="l1", solver="saga",
             scoring="roc_auc", max_iter=5000, class_weight="balanced", random_state=42
         )
         m.fit(X_scaled[train_idx], y[train_idx])
         y_proba_cv[test_idx] = m.predict_proba(X_scaled[test_idx])[:, 1]
 
     auc = roc_auc_score(y, y_proba_cv)
-    print(f"  CV AUC-ROC: {auc:.3f}")
+
+    # ── Bootstrap 95 % CI on LOOCV AUC ────────────────────────────
+    rng = np.random.RandomState(42)
+    boot_aucs = []
+    for _ in range(2000):
+        idx = rng.choice(n, n, replace=True)
+        if len(np.unique(y[idx])) < 2:
+            continue
+        boot_aucs.append(roc_auc_score(y[idx], y_proba_cv[idx]))
+    ci_lo, ci_hi = np.percentile(boot_aucs, [2.5, 97.5])
+
+    print(f"  LOOCV AUC-ROC: {auc:.3f}  (95% CI: {ci_lo:.3f}–{ci_hi:.3f})")
+
+    # ── Refit on all data for feature importance ───────────────────
+    model = LogisticRegressionCV(
+        Cs=np.logspace(-3, 1, 20), cv=inner_cv, penalty="l1", solver="saga",
+        scoring="roc_auc", max_iter=5000, class_weight="balanced", random_state=42
+    )
+    model.fit(X_scaled, y)
+
+    coefs = pd.DataFrame({
+        "feature": feature_cols,
+        "coefficient": model.coef_[0],
+        "abs_coef": np.abs(model.coef_[0]),
+    }).sort_values("abs_coef", ascending=False)
+
     print(f"  Top features:")
     for _, row in coefs[coefs["abs_coef"] > 0.01].head(10).iterrows():
         direction = "↑R" if row["coefficient"] > 0 else "↑NR"
         print(f"    {row['feature']}: {row['coefficient']:.3f} {direction}")
 
-    return model, coefs, (y, y_proba_cv, auc)
+    return model, coefs, (y, y_proba_cv, auc, ci_lo, ci_hi)
 
 
 def nmf_programs(adata, k_range=(4, 12)):
@@ -316,7 +331,7 @@ def main():
     model, coefs, cv_results = lasso_response_model(patient_df)
 
     if cv_results is not None:
-        y_true, y_proba, auc = cv_results
+        y_true, y_proba, auc, ci_lo, ci_hi = cv_results
         coefs.to_csv(TAB / "lasso_coefficients.csv", index=False)
 
         # ─── Fig 1: ROC curve ──────────────────────────────────────
@@ -324,16 +339,17 @@ def main():
 
         ax = axes[0]
         fpr, tpr, _ = roc_curve(y_true, y_proba)
-        ax.plot(fpr, tpr, "b-", linewidth=2, label=f"LASSO (AUC={auc:.3f})")
+        ax.plot(fpr, tpr, "b-", linewidth=2,
+                label=f"LASSO LOOCV (AUC={auc:.3f}, 95% CI {ci_lo:.2f}–{ci_hi:.2f})")
         ax.plot([0,1], [0,1], "k--", alpha=0.3)
         ax.set_xlabel("False Positive Rate"); ax.set_ylabel("True Positive Rate")
-        ax.set_title("A. ROC Curve — IO Response Prediction", fontweight="bold")
-        ax.legend()
+        ax.set_title("A. ROC Curve — IO Response Prediction (LOOCV)", fontweight="bold")
+        ax.legend(fontsize=9)
 
         # Feature importance bar
         ax = axes[1]
         top_feats = coefs[coefs["abs_coef"] > 0.01].head(15)
-        colors = ["#2ecc71" if c > 0 else "#e74c3c" for c in top_feats["coefficient"]]
+        colors = ["#0077BB" if c > 0 else "#CC3311" for c in top_feats["coefficient"]]
         ax.barh(range(len(top_feats)), top_feats["coefficient"], color=colors, height=0.5)
         ax.set_yticks(range(len(top_feats)))
         ax.set_yticklabels(top_feats["feature"].str.replace("frac_", "% "))
@@ -348,22 +364,22 @@ def main():
     # ═══════════════════════════════════════════════════════════════
     # 2. RANDOM FOREST COMPARISON
     # ═══════════════════════════════════════════════════════════════
-    print("\n[RF] Random Forest comparison...")
+    print("\n[RF] Random Forest comparison (LOOCV)...")
     y = (patient_df["response"] == "Responder").astype(int).values
     feature_cols = [c for c in patient_df.columns
                     if c not in ["patient_ID", "response", "n_cells"]]
     X = patient_df[feature_cols].values
 
-    n_splits = min(5, min(y.sum(), (1-y).sum()))
-    if n_splits >= 2:
-        cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
-        y_proba_rf = np.zeros(len(y))
-        for train_idx, test_idx in cv.split(X, y):
+    n = len(y)
+    if n >= 10:
+        loo = LeaveOneOut()
+        y_proba_rf = np.zeros(n)
+        for train_idx, test_idx in loo.split(X, y):
             rf = RandomForestClassifier(n_estimators=200, class_weight="balanced", random_state=42)
             rf.fit(X[train_idx], y[train_idx])
             y_proba_rf[test_idx] = rf.predict_proba(X[test_idx])[:, 1]
         auc_rf = roc_auc_score(y, y_proba_rf)
-        print(f"  RF CV AUC: {auc_rf:.3f}")
+        print(f"  RF LOOCV AUC: {auc_rf:.3f}")
 
         # Feature importance
         rf_full = RandomForestClassifier(n_estimators=200, class_weight="balanced", random_state=42)
@@ -381,7 +397,7 @@ def main():
         ax.set_yticks(range(len(top_rf)))
         ax.set_yticklabels(top_rf["feature"].str.replace("frac_", "% "))
         ax.set_xlabel("Feature Importance (Gini)")
-        ax.set_title(f"Random Forest Feature Importance (AUC={auc_rf:.3f})", fontweight="bold")
+        ax.set_title(f"Random Forest Feature Importance (LOOCV AUC={auc_rf:.3f})", fontweight="bold")
         plt.tight_layout()
         for ext in ["png", "pdf"]:
             plt.savefig(FIG / f"03_rf_importance.{ext}", dpi=200, bbox_inches="tight")
@@ -441,8 +457,8 @@ def main():
                 nr_vals = nmf_scores.loc[nmf_scores["response"]=="Non-Responder", prog]
                 bp = ax.boxplot([r_vals, nr_vals], labels=["R", "NR"], patch_artist=True,
                                widths=0.5, showfliers=False)
-                bp["boxes"][0].set_facecolor("#2ecc71")
-                bp["boxes"][1].set_facecolor("#e74c3c")
+                bp["boxes"][0].set_facecolor("#0077BB")
+                bp["boxes"][1].set_facecolor("#CC3311")
                 stat, pval = mannwhitneyu(r_vals, nr_vals)
                 ax.set_title(f"{prog}\np={pval:.2e}", fontsize=9)
             for j in range(i+1, len(axes)):
@@ -534,7 +550,7 @@ def main():
         vals = boot_df[boot_df["signature"] == sig]["effect"]
         ci_lo, ci_hi = np.percentile(vals, [2.5, 97.5])
         mean_val = vals.mean()
-        color = "#2ecc71" if mean_val > 0 else "#e74c3c"
+        color = "#0077BB" if mean_val > 0 else "#CC3311"
         ax.errorbar(mean_val, i, xerr=[[mean_val - ci_lo], [ci_hi - mean_val]],
                     fmt="o", color=color, capsize=5, markersize=8, linewidth=2)
     ax.set_yticks(positions)

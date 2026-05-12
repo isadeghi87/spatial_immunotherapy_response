@@ -27,6 +27,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import seaborn as sns
+import sys; sys.path.insert(0, str(__import__('pathlib').Path(__file__).resolve().parents[2]))
+from config.publication_style import apply_style, PAL, CMAP, label_clean
+apply_style()
 from pathlib import Path
 from scipy.stats import mannwhitneyu, permutation_test, spearmanr
 from scipy.sparse import issparse
@@ -98,7 +101,7 @@ LR_PAIRS = [
     ("IL10", "IL10RA"),     # Immunosuppression
 ]
 
-RESPONSE_PAL = {"Responder": "#2ecc71", "Non_Responder": "#e74c3c"}
+RESPONSE_PAL = {"Responder": "#0077BB", "Non_Responder": "#CC3311"}
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -965,7 +968,7 @@ def downstream_summary(perm_df, loo_df, ent_df, datasets):
     ax = fig.add_subplot(gs[0, 0])
     if perm_df is not None:
         perm_df["neg_log10_p"] = -np.log10(perm_df["p_permutation_9999"].clip(lower=1e-6))
-        colors = ["#2ecc71" if e > 0 else "#e74c3c" for e in perm_df["effect_size"]]
+        colors = ["#0077BB" if e > 0 else "#CC3311" for e in perm_df["effect_size"]]
         ax.scatter(perm_df["effect_size"], perm_df["neg_log10_p"],
                    c=colors, s=60, edgecolors="black", linewidth=0.5)
         ax.axhline(-np.log10(0.05), color="gray", linestyle="--", linewidth=0.8)
@@ -1018,7 +1021,7 @@ def downstream_summary(perm_df, loo_df, ent_df, datasets):
             flip_counts[sig] = flips
 
         flip_s = pd.Series(flip_counts).sort_values(ascending=False)
-        colors = ["#e74c3c" if v > 0 else "#2ecc71" for v in flip_s.values]
+        colors = ["#CC3311" if v > 0 else "#0077BB" for v in flip_s.values]
         ax.barh(range(len(flip_s)), flip_s.values, color=colors, height=0.5,
                 edgecolor="black", linewidth=0.3)
         ax.set_yticks(range(len(flip_s)))
@@ -1038,7 +1041,7 @@ def downstream_summary(perm_df, loo_df, ent_df, datasets):
             mean_lr = mean_lr.sort_values("diff")
             top_diff = pd.concat([mean_lr.head(5), mean_lr.tail(5)])
             y = np.arange(len(top_diff))
-            ax.barh(y, top_diff["diff"], color=["#e74c3c" if d < 0 else "#2ecc71" for d in top_diff["diff"]],
+            ax.barh(y, top_diff["diff"], color=["#CC3311" if d < 0 else "#0077BB" for d in top_diff["diff"]],
                     height=0.5, edgecolor="black", linewidth=0.3)
             ax.set_yticks(y)
             ax.set_yticklabels(top_diff.index, fontsize=7)

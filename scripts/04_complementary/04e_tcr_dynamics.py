@@ -16,6 +16,9 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import sys; sys.path.insert(0, str(__import__('pathlib').Path(__file__).resolve().parents[2]))
+from config.publication_style import apply_style, PAL, CMAP, label_clean
+apply_style()
 from pathlib import Path
 
 PROJECT = Path(__file__).resolve().parents[2]
@@ -112,7 +115,7 @@ def plot_tcr_clonality():
 
     colors_exp = ["#c0392b", "#e67e22", "#f1c40f", "#95a5a6"]
     cats = ["Hyperexpanded", "Large", "Medium", "Small/Singleton"]
-    resp_palette = {"Responder": "#2ecc71", "Non-Responder": "#e74c3c", "Unknown": "#95a5a6"}
+    resp_palette = {"Responder": "#0077BB", "Non-Responder": "#CC3311", "Unknown": "#95a5a6"}
 
     # Panel A: stacked expansion by sample, coloured by response status
     axA = fig.add_subplot(gs[0, 0])

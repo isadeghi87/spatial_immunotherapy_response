@@ -24,19 +24,55 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.colors import LinearSegmentedColormap
 import matplotlib.colors as mc
+import seaborn as sns
 
 # ── paths ────────────────────────────────────────────────────────────
 PROJECT  = Path(__file__).resolve().parents[2]
 ATLAS    = PROJECT / "data" / "processed" / "integrated_io_atlas.h5ad"
 GTF      = PROJECT / "data" / "references" / "gencode.v44.basic.annotation.gtf.gz"
 OUT      = PROJECT / "out" / "02_analysis" / "figures"
+TAB      = PROJECT / "out" / "02_analysis" / "tables"
 OUT.mkdir(parents=True, exist_ok=True)
+TAB.mkdir(parents=True, exist_ok=True)
+
+
+def _save_figure(fig, stem, dpi=500):
+    png_path = OUT / f"{stem}.png"
+    pdf_path = OUT / f"{stem}.pdf"
+    fig.savefig(png_path, dpi=dpi, bbox_inches="tight", facecolor="white")
+    fig.savefig(pdf_path, bbox_inches="tight", facecolor="white")
+    print(f"  Saved → {png_path}")
+    print(f"  Saved → {pdf_path}")
+
+_TUMOR_KEYWORDS = ("Tumor", "Hepatocyte", "Epithelial", "Cancer", "Malig")
 
 
 def _resolve_celltype_col(adata):
-    for col in ("cell_type", "celltype_sub", "Cell.type", "celltype_global", "celltype", "leiden"):
-        if col in adata.obs.columns:
-            return col
+    candidates = [
+        "cell_type",
+        "cell_type_original",
+        "celltype",
+        "Cell.type",
+        "celltype_global",
+        "celltype_sub",
+        "leiden",
+    ]
+    scored = []
+    for col in candidates:
+        if col not in adata.obs.columns:
+            continue
+        values = adata.obs[col].astype(str)
+        non_missing = (~values.isin(("nan", "None", ""))).sum()
+        tumor_hits = values.str.contains("|".join(_TUMOR_KEYWORDS), case=False,
+                                         na=False, regex=True).sum()
+        scored.append(((int(tumor_hits > 0), int(non_missing)), col, non_missing, tumor_hits))
+
+    if scored:
+        scored.sort(reverse=True)
+        _, chosen, non_missing, tumor_hits = scored[0]
+        print(f"  Using cell-type column '{chosen}' "
+              f"(non-missing={non_missing}, tumor-like labels={tumor_hits})")
+        return chosen
     raise KeyError("No cell-type annotation column found in adata.obs")
 
 
@@ -50,12 +86,10 @@ def _pick_reference_cats(adata, ct_col):
     available = set(str(c) for c in adata.obs[ct_col].dropna().unique())
 
     # Keywords that mark likely MALIGNANT / epithelial cells (test group)
-    tumor_kw = ("Tumor", "Hepatocyte", "Epithelial", "Cancer", "Malig")
-
     # Everything that does NOT match a tumor keyword is reference
     ref_cats = sorted(
         c for c in available
-        if not any(k.lower() in c.lower() for k in tumor_kw)
+        if not any(k.lower() in c.lower() for k in _TUMOR_KEYWORDS)
         and c not in ("Unknown", "Unknown_Doublets", "Unknown_Empty", "nan")
     )
 
@@ -104,14 +138,46 @@ def run_infercnv(adata_path=None):
     if adata.n_obs > MAX_CELLS:
         print(f"  Stratified subsampling {MAX_CELLS} cells (from {adata.n_obs}) …")
         rng = np.random.default_rng(42)
-        # Stratify by cell_type so rare types (Tumor, Hepatocyte) are represented
-        ct = adata.obs[ct_col].astype(str)
-        per_type = max(50, MAX_CELLS // ct.nunique())
         keep = []
-        for label in ct.unique():
-            mask = np.where(ct.values == label)[0]
+
+        # Guarantee representation of every labelled patient before the
+        # broader cell-type stratified downsample. This keeps downstream
+        # patient-level modelling from silently losing validation patients.
+        pid_col = next((c for c in ("patient_ID", "Patient_ID", "patient", "sample_id")
+                        if c in adata.obs.columns), None)
+        if pid_col is not None and "response" in adata.obs.columns:
+            obs = adata.obs[[pid_col, "response"]].copy()
+            obs[pid_col] = obs[pid_col].astype(str)
+            obs["_pos"] = np.arange(adata.n_obs)
+            labelled = obs["response"].isin(["Responder", "Non-Responder"])
+            protected = []
+            min_per_patient = 50
+            for _, group in obs.loc[labelled].groupby(pid_col, observed=True):
+                pos = group["_pos"].to_numpy()
+                n_keep = min(len(pos), min_per_patient)
+                protected.append(rng.choice(pos, n_keep, replace=False))
+            if protected:
+                protected = np.sort(np.unique(np.concatenate(protected)))
+                keep.append(protected)
+                print(f"  Preserved {len(protected)} cells across "
+                      f"{obs.loc[labelled, pid_col].nunique()} labelled patients")
+
+        protected_idx = np.sort(np.unique(np.concatenate(keep))) if keep else np.array([], dtype=int)
+        available_mask = np.ones(adata.n_obs, dtype=bool)
+        available_mask[protected_idx] = False
+
+        # Stratify the remaining budget by broad cell type so rare types stay represented.
+        ct = adata.obs[ct_col].astype(str).to_numpy()
+        remaining_budget = max(0, MAX_CELLS - len(protected_idx))
+        available_labels = np.unique(ct[available_mask])
+        per_type = max(50, remaining_budget // max(1, len(available_labels)))
+        for label in available_labels:
+            mask = np.where((ct == label) & available_mask)[0]
+            if not len(mask):
+                continue
             n = min(len(mask), per_type)
             keep.append(rng.choice(mask, n, replace=False))
+
         idx = np.concatenate(keep)
         # If still above MAX_CELLS, trim; if below, top up randomly
         if len(idx) > MAX_CELLS:
@@ -154,12 +220,15 @@ def run_infercnv(adata_path=None):
     sc.pl.umap(adata, color="cnv_score", ax=ax, show=False, cmap="magma",
                title="CNV Score (Malignancy Proxy)")
     plt.tight_layout()
-    plt.savefig(OUT / "02g_cnv_score_umap.png", dpi=300, bbox_inches="tight")
+    _save_figure(fig, "02g_cnv_score_umap")
     plt.close()
 
     # ── Plot 3: attractive multi-panel dashboard ─────────────────────
     print("Generating attractive dashboard …")
     _plot_dashboard(adata, ct_col)
+
+    print("Summarising patient-level CNV support …")
+    _summarize_patient_support(adata, ct_col)
 
     # ── Save annotated atlas with CNV columns for downstream (02h) ──
     cnv_out = PROJECT / "data" / "processed" / "integrated_io_atlas_cnv.h5ad"
@@ -279,7 +348,7 @@ def _plot_publication_heatmap(adata, ct_col):
     chr_bounds, _ = _get_chr_boundaries(adata)
 
     # ── Figure layout ────────────────────────────────────────────────
-    fig = plt.figure(figsize=(18, 12))
+    fig = plt.figure(figsize=(20, 13))
     gs = gridspec.GridSpec(
         2, 3,
         height_ratios=[3, 1],
@@ -406,15 +475,14 @@ def _plot_publication_heatmap(adata, ct_col):
         for sp in ("top", "right"):
             ax_vio.spines[sp].set_visible(False)
 
-    fig.savefig(OUT / "02g_infercnv_chromosome_heatmap.png", dpi=250, bbox_inches="tight")
+    _save_figure(fig, "02g_infercnv_chromosome_heatmap")
     plt.close(fig)
-    print(f"  Saved → {OUT / '02g_infercnv_chromosome_heatmap.png'}")
 
 
 def _plot_dashboard(adata, ct_col):
     """Compact 2-panel dashboard: heatmap + cell-type violin."""
     plt.style.use("seaborn-v0_8-white")
-    fig = plt.figure(figsize=(20, 7))
+    fig = plt.figure(figsize=(22, 8))
     gs = gridspec.GridSpec(1, 3, width_ratios=[0.06, 2, 1], wspace=0.12)
 
     # Assign groups
@@ -523,9 +591,107 @@ def _plot_dashboard(adata, ct_col):
     for sp in ("top", "right"):
         ax_v.spines[sp].set_visible(False)
 
-    fig.savefig(OUT / "02g_infercnv_attractive_dashboard.png", dpi=300, bbox_inches="tight")
+    _save_figure(fig, "02g_infercnv_attractive_dashboard")
     plt.close(fig)
-    print(f"  Saved dashboard → {OUT / '02g_infercnv_attractive_dashboard.png'}")
+
+
+def _resolve_patient_col(adata):
+    return next((c for c in ("patient_ID", "Patient_ID", "patient", "sample_id")
+                 if c in adata.obs.columns), None)
+
+
+def _summarize_patient_support(adata, ct_col):
+    patient_col = _resolve_patient_col(adata)
+    if patient_col is None or "response" not in adata.obs.columns:
+        print("  [SKIP] Patient-level CNV support summary requires patient/sample and response columns.")
+        return
+
+    obs = adata.obs[[patient_col, "response", "cnv_score", "malignant_status", ct_col]].copy()
+    obs[patient_col] = obs[patient_col].astype(str)
+    obs["response"] = obs["response"].astype(str)
+    obs = obs[obs["response"].isin(["Responder", "Non-Responder"])]
+    if obs.empty:
+        print("  [SKIP] No labelled patients available for CNV support summary.")
+        return
+
+    obs["is_malignant"] = obs["malignant_status"].astype(str).eq("Malignant")
+    obs["tumor_like"] = obs[ct_col].astype(str).str.contains("Tumor|Hepatocyte|Epithelial|Cancer|Malig",
+                                                                case=False, na=False, regex=True)
+
+    patient_df = (obs.groupby(patient_col, observed=True)
+                  .agg(
+                      response=("response", lambda x: x.dropna().iloc[0] if len(x.dropna()) else np.nan),
+                      n_cells=("cnv_score", "size"),
+                      malignant_fraction=("is_malignant", "mean"),
+                      mean_cnv_score=("cnv_score", "mean"),
+                      median_cnv_score=("cnv_score", "median"),
+                      tumor_like_fraction=("tumor_like", "mean"),
+                  )
+                  .reset_index()
+                  .rename(columns={patient_col: "patient_id"}))
+
+    support_threshold = float(patient_df["malignant_fraction"].quantile(0.75))
+    patient_df["supports_cnv_result"] = patient_df["malignant_fraction"] >= support_threshold
+    patient_df["support_group"] = np.where(patient_df["supports_cnv_result"], "CNV-high", "other")
+    patient_df.to_csv(TAB / "02g_cnv_patient_summary.csv", index=False)
+
+    support_summary = (patient_df.groupby(["response", "support_group"], observed=True)
+                       .size()
+                       .rename("n_patients")
+                       .reset_index())
+    totals = support_summary.groupby("response", observed=True)["n_patients"].sum().rename("total_patients")
+    support_summary = support_summary.merge(totals, on="response", how="left")
+    support_summary["fraction"] = support_summary["n_patients"] / support_summary["total_patients"]
+    support_summary["support_threshold_q75"] = support_threshold
+    support_summary.to_csv(TAB / "02g_cnv_patient_support_summary.csv", index=False)
+
+    fig, axes = plt.subplots(1, 3, figsize=(18, 5.5))
+
+    ax = axes[0]
+    pivot = (support_summary.pivot(index="response", columns="support_group", values="fraction")
+             .reindex(["Responder", "Non-Responder"])
+             .fillna(0))
+    bottom = np.zeros(len(pivot))
+    colors = {"CNV-high": "#8B1A1A", "other": "#BDBDBD"}
+    for group in pivot.columns:
+        ax.bar(pivot.index, pivot[group].values, bottom=bottom,
+               color=colors.get(group, "#999999"), edgecolor="white", linewidth=0.8,
+               label=group)
+        bottom += pivot[group].values
+    ax.set_ylim(0, 1)
+    ax.set_ylabel("Proportion of patients")
+    ax.set_title("A. Fraction of patients with CNV-high support", fontweight="bold")
+    ax.legend(frameon=False, fontsize=8)
+
+    ax = axes[1]
+    sns.boxplot(data=patient_df, x="response", y="malignant_fraction", ax=ax,
+                palette={"Responder": "#0077BB", "Non-Responder": "#CC3311"}, fliersize=1)
+    sns.stripplot(data=patient_df, x="response", y="malignant_fraction", ax=ax,
+                  palette={"Responder": "#0077BB", "Non-Responder": "#CC3311"},
+                  size=4, alpha=0.7)
+    ax.axhline(support_threshold, color="#444444", linestyle="--", linewidth=1)
+    ax.set_ylabel("Malignant-cell fraction")
+    ax.set_title("B. Patient-level malignant fraction by response", fontweight="bold")
+
+    ax = axes[2]
+    compare_cols = ["mean_cnv_score", "tumor_like_fraction", "n_cells"]
+    melt = patient_df[["support_group"] + compare_cols].melt(id_vars="support_group",
+                                                               var_name="property",
+                                                               value_name="value")
+    sns.boxplot(data=melt, x="property", y="value", hue="support_group", ax=ax,
+                palette={"CNV-high": "#8B1A1A", "other": "#BDBDBD"}, fliersize=1)
+    sns.stripplot(data=melt, x="property", y="value", hue="support_group", ax=ax,
+                  dodge=True, palette={"CNV-high": "#8B1A1A", "other": "#BDBDBD"},
+                  size=3, alpha=0.6)
+    handles, labels = ax.get_legend_handles_labels()
+    ax.legend(handles[:2], labels[:2], frameon=False, fontsize=8, title="")
+    ax.set_title("C. Properties of CNV-high patients", fontweight="bold")
+    ax.tick_params(axis="x", rotation=20)
+
+    plt.suptitle("InferCNV patient support summary", fontsize=13, fontweight="bold", y=1.02)
+    plt.tight_layout()
+    _save_figure(fig, "02g_cnv_patient_support")
+    plt.close(fig)
 
 
 def replot_only():
@@ -546,11 +712,13 @@ def replot_only():
     sc.pl.umap(adata, color="cnv_score", ax=ax, show=False, cmap="magma",
                title="CNV Score (Malignancy Proxy)")
     plt.tight_layout()
-    plt.savefig(OUT / "02g_cnv_score_umap.png", dpi=300, bbox_inches="tight")
+    _save_figure(fig, "02g_cnv_score_umap")
     plt.close()
 
     print("Plotting dashboard …")
     _plot_dashboard(adata, ct_col)
+    print("Plotting patient-level support summary …")
+    _summarize_patient_support(adata, ct_col)
     print("Done – all plots regenerated.")
 
 

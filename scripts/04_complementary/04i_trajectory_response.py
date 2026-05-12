@@ -89,7 +89,9 @@ def main():
 
     # ── recompute neighbors, UMAP, DPT on the CD8 subset ───────────
     print("  Neighbors + UMAP + DPT …")
-    if "X_pca_harmony" in adata_cd8.obsm:
+    if "X_scVI" in adata_cd8.obsm:
+        sc.pp.neighbors(adata_cd8, use_rep="X_scVI", n_neighbors=15)
+    elif "X_pca_harmony" in adata_cd8.obsm:
         sc.pp.neighbors(adata_cd8, use_rep="X_pca_harmony", n_neighbors=15)
     else:
         sc.pp.neighbors(adata_cd8, n_neighbors=15)

@@ -84,7 +84,7 @@ The active analysis stack is broader than the older 4-step layout. The current r
 
 ### 01. Preprocessing and atlas integration
 
-- `scripts/01_preprocessing/01_preprocess_integrate.py`: QC, normalization, HVG selection, PCA, Harmony, neighbors, UMAP, Leiden.
+- `scripts/01_preprocessing/01_preprocess_integrate.py`: QC, normalization, HVG selection, PCA, scVI integration, neighbors, UMAP, Leiden.
 - `scripts/01_preprocessing/01c_batch_effect_diagnostics.py`: post-integration batch diagnostics.
 - `scripts/01_preprocessing/01d_scvi_benchmark.py`: SCVI benchmarking utilities.
 - `scripts/01_preprocessing/regen_umap.py`: refreshed major/subtype UMAP rendering.
@@ -156,7 +156,7 @@ The `scripts/05_multilayer/` directory is one of the largest recent additions an
 - `scripts/06_reframe/06c_spatial_module_loso.py`
 - `scripts/06_reframe/06d_imbrave150_reframe.py`
 
-These support the revised narrative around discovery performance, transfer failure, spatial support, and arm-specific clinical validation.
+These support the revised narrative around discovery immune architecture, bounded external consistency, spatial support, and arm-specific clinical context.
 
 ---
 
@@ -424,7 +424,7 @@ Iman Sadeghi — https://github.com/isadeghi87# Spatial Biomarkers of Immunother
 
 | What | Detail |
 |------|--------|
-| **Integrated atlas** | ~970,000 cells × 15,853 genes across 5 scRNA-seq studies, Harmony batch-corrected |
+| **Integrated atlas** | ~970,000 cells × 15,853 genes across 5 scRNA-seq studies, scVI batch-corrected (Harmony retained as orthogonal benchmark) |
 | **Response labels** | 30 patients with matched Responder / Non-Responder anti-PD-1 labels (GSE206325) |
 | **16 IO signatures** | Exhaustion, activation, cytotoxicity, Treg, M1/M2, IFN-γ, TGF-β, checkpoints, mregDC, Tfh, angiogenesis, etc. |
 | **Response prediction** | LASSO AUC = 0.966, Random Forest AUC = 0.941 (patient-level cross-validated) |
@@ -445,7 +445,7 @@ this project with the current state of the field.
 |-----------|--------------------------|-------------------|
 | **Atlas scale** | Single-cohort, 10–150 k cells | **~970 k cells** across 5 independent cohorts (GSE206325, GSE125449, GSE140228, GSE149614, E-MTAB-10553), making it one of the largest integrated HCC IO atlases assembled to date |
 | **Response labels** | Often absent or limited to few patients | 30 patients with matched Responder / Non-Responder annotations (anti-PD-1) plus etiology-matched NASH-HCC controls |
-| **Multi-cohort integration** | Rare; when attempted, batch effects are under-reported | Systematic Harmony batch correction across 5 labs, 3 sequencing chemistries, and 2 array platforms, with explicit batch-effect diagnostics |
+| **Multi-cohort integration** | Rare; when attempted, batch effects are under-reported | Systematic scVI batch correction across 5 labs, 3 sequencing chemistries, and 2 array platforms (with Harmony as benchmark and explicit ASW/iLISI/cLISI/kBET diagnostics) |
 | **IO signature breadth** | Typically 2–4 signatures (e.g., exhaustion, cytotoxicity) | **16 mechanistically curated IO signatures** scored per cell, spanning exhaustion depth, progenitor state, M1/M2 polarity, mregDC, Tfh, TGF-β, WNT/β-catenin, angiogenesis, TLS, and checkpoints |
 | **Spatial transcriptomics** | Absent or reported as a standalone vignette | Fully integrated Visium spatial analysis (GSE173905) with TLS hub detection, spatial topology gradients at the tumor-stroma interface, and spatial deconvolution proxies |
 | **CNV–TME cross-modal integration** | InferCNV run in isolation; no link to immune context | InferCNV-derived malignant clones are **cross-correlated with TME composition shifts**, HLA-loss events are mapped to immune evasion pathways, and CNV burden is translated to progression probabilities via Kaplan-Meier hazard modeling |
@@ -499,7 +499,7 @@ spatial_immunotherapy_response/
 │   │   └── 00b_convert_emtab10553.R       # E-MTAB-10553 Seurat .rds → MTX + CSV
 │   │
 │   ├── 01_preprocessing/
-│   │   └── 01_preprocess_integrate.py     # QC → normalize → HVG → PCA → Harmony → UMAP → Leiden
+│   │   └── 01_preprocess_integrate.py     # QC → normalize → HVG → PCA → scVI → UMAP → Leiden
 │   │
 │   ├── 02_analysis/
 │   │   ├── 02a_response_tme_characterization.py  # Cell types, 16 IO signatures, DEGs, 8 figures
@@ -559,13 +559,13 @@ spatial_immunotherapy_response/
 
 ```
  ┌──────────────────┐
- │ 00  Data Download │ GEO / ArrayExpress / clinical trials
- │     & Conversion  │ .Rda/.rds → MTX + CSV
+ │ 00  Cohort Counts │ scRNA-seq pts: GSE206325 24 labeled, Cappuyns 32 eval., GSE125449 8
+ │     & Sample Sets │ spatial: GSE238264 7 sections; clinical: IMbrave150 177, plus GSE202069 / CheckMate-459
  └────────┬─────────┘
           ▼
  ┌──────────────────┐
  │ 01  Preprocessing │ QC → Normalize → 3 000 HVGs → PCA (50)
- │     & Integration │ Harmony batch correction → UMAP → Leiden (35 clusters)
+ │     & Integration │ scVI batch correction (Harmony as benchmark) → UMAP → Leiden (35 clusters)
  └────────┬─────────┘  Output: integrated_io_atlas.h5ad (970 k cells × 15 853 genes)
           ▼
  ┌──────────────────────────────────────────────────────┐

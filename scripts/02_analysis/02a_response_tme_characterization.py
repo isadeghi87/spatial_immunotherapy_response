@@ -125,7 +125,7 @@ def response_deg_per_celltype(adata, min_cells=50):
         try:
             sc.tl.rank_genes_groups(sub, groupby="response", groups=["Responder"],
                                     reference="Non-Responder", method="wilcoxon",
-                                    use_raw=False)
+                                    use_raw=False, n_genes=200)
             deg = sc.get.rank_genes_groups_df(sub, group="Responder")
             deg["cell_type"] = ct
             deg["n_responder"] = n_r
@@ -145,15 +145,15 @@ def cell_abundance_test(adata):
     io_cells = adata[adata.obs["response"].isin(["Responder", "Non-Responder"])].copy()
 
     # Patient-level composition
-    count_df = io_cells.obs.groupby(["patient_ID", "cell_type"], observed=True).size().unstack(fill_value=0)
-    frac_df = count_df.div(count_df.sum(axis=1), axis=0)
-    resp_map = io_cells.obs.groupby("patient_ID", observed=True)["response"].first()
-    frac_df["response"] = frac_df.index.map(resp_map).values
+    patient_comp = io_cells.obs.groupby(["patient_ID", "response", "cell_type"]).size().reset_index(name="count")
+    patient_total = patient_comp.groupby(["patient_ID", "response"])["count"].transform("sum")
+    patient_comp["fraction"] = patient_comp["count"] / patient_total
 
     results = []
-    for ct in count_df.columns:
-        r_fracs = frac_df.loc[frac_df["response"] == "Responder", ct].dropna().values
-        nr_fracs = frac_df.loc[frac_df["response"] == "Non-Responder", ct].dropna().values
+    for ct in sorted(patient_comp["cell_type"].unique()):
+        ct_data = patient_comp[patient_comp["cell_type"] == ct]
+        r_fracs = ct_data[ct_data["response"] == "Responder"]["fraction"].values
+        nr_fracs = ct_data[ct_data["response"] == "Non-Responder"]["fraction"].values
         if len(r_fracs) >= 3 and len(nr_fracs) >= 3:
             stat, pval = mannwhitneyu(r_fracs, nr_fracs, alternative="two-sided")
             results.append({
@@ -186,48 +186,6 @@ def main():
     print("[LOAD] Reading integrated atlas...")
     adata = sc.read_h5ad(h5_path)
     print(f"  {adata.shape[0]:,} cells × {adata.shape[1]:,} genes")
-
-    # ── Recover GSE206325 metadata if missing from concat ──────────
-    if "response" not in adata.obs.columns:
-        print("[META] Recovering GSE206325 clinical metadata...")
-        cell_meta = pd.read_csv(PROC / "GSE206325_metadata.csv", index_col=0)
-        sample_ann = pd.read_csv(PROC / "GSE206325_sample_annotations.csv", index_col=0)
-        sample_ann.index = sample_ann.index.astype(str)
-        clust_ann = pd.read_csv(PROC / "GSE206325_cluster_annotations.csv", index_col=0)
-        clust_ann["cluster_ID"] = clust_ann["cluster_ID"].astype(str)
-
-        # Match barcodes present in both atlas and GSE206325 metadata
-        shared = adata.obs_names.intersection(cell_meta.index)
-        print(f"  Matched {len(shared):,} GSE206325 barcodes in atlas")
-
-        # Map sample_id → clinical columns
-        adata.obs["sample_id"] = np.nan
-        adata.obs.loc[shared, "sample_id"] = cell_meta.loc[shared, "cell_to_sample_ID"].values.astype(str)
-        adata.obs["cluster_id"] = np.nan
-        adata.obs.loc[shared, "cluster_id"] = cell_meta.loc[shared, "cell_to_cluster"].values.astype(str)
-
-        for col in ["patient_ID", "tissue", "treatment_Resp", "Immune_Infiltration"]:
-            mapping = sample_ann[col].to_dict()
-            adata.obs[col] = adata.obs["sample_id"].map(mapping)
-
-        resp_map = {"anti-PD1_R": "Responder", "anti-PD1_NR": "Non-Responder"}
-        adata.obs["response"] = adata.obs["treatment_Resp"].map(resp_map)
-
-        # Cell type original
-        ct_map = {}
-        for _, row in clust_ann.iterrows():
-            cid = str(row["cluster_ID"])
-            subgroup = row["subgroup"] if pd.notna(row.get("subgroup")) else ""
-            ct = row["type"] if pd.notna(row.get("type")) else ""
-            group = row["group"] if pd.notna(row.get("group")) else ""
-            if subgroup:
-                ct_map[cid] = f"{ct}_{subgroup}" if ct else subgroup
-            elif ct:
-                ct_map[cid] = ct
-            else:
-                ct_map[cid] = group
-        adata.obs["cell_type_original"] = adata.obs["cluster_id"].map(ct_map)
-        print(f"  Response: {adata.obs['response'].value_counts(dropna=False).to_dict()}")
 
     # ── Cell type annotation ───────────────────────────────────────
     # Use original Magen annotations where available; annotate rest
@@ -338,8 +296,8 @@ def main():
     ax.scatter(adata.obsm["X_umap"][~mask_tumor, 0], adata.obsm["X_umap"][~mask_tumor, 1],
                s=0.1, alpha=0.05, c="gray", rasterized=True, label="Other")
     ax.scatter(adata.obsm["X_umap"][mask_tumor, 0], adata.obsm["X_umap"][mask_tumor, 1],
-               s=0.3, alpha=0.2, c="#9b59b6", rasterized=True, label="Tumor Tissue")
-    ax.legend(fontsize=8, markerscale=10); ax.set_title("B. Source Tissue", fontweight="bold")
+               s=0.3, alpha=0.2, c="#e74c3c", rasterized=True, label="Tumor")
+    ax.legend(fontsize=8, markerscale=10); ax.set_title("B. Tumor Cells", fontweight="bold")
     ax.set_xlabel("UMAP 1"); ax.set_ylabel("UMAP 2")
 
     ax = axes[2]
@@ -354,7 +312,7 @@ def main():
     plt.suptitle("HCC IO Response Atlas — Cell Type & Response", fontweight="bold", fontsize=13)
     plt.tight_layout()
     for ext in ["png", "pdf"]:
-        plt.savefig(FIG / f"02a_celltype_response_umap.{ext}", dpi=200, bbox_inches="tight")
+        plt.savefig(FIG / f"02_celltype_response_umap.{ext}", dpi=200, bbox_inches="tight")
     plt.close()
 
     # ─── Fig 2: Signature violin plots R vs NR ────────────────────
@@ -382,7 +340,7 @@ def main():
     plt.suptitle("IO Signatures: Responder vs Non-Responder", fontweight="bold")
     plt.tight_layout()
     for ext in ["png", "pdf"]:
-        plt.savefig(FIG / f"02a_signature_violins.{ext}", dpi=200, bbox_inches="tight")
+        plt.savefig(FIG / f"02_signature_violins.{ext}", dpi=200, bbox_inches="tight")
     plt.close()
 
     # ─── Fig 3: Cell type abundance dotplot (R vs NR) ──────────────
@@ -391,7 +349,7 @@ def main():
         abund_plot = abund_df.sort_values("log2FC")
         colors = ["#2ecc71" if x > 0 else "#e74c3c" for x in abund_plot["log2FC"]]
         sizes = np.clip(-np.log10(abund_plot["pvalue"].clip(1e-20)), 1, 20) * 5
-        ax.barh(range(len(abund_plot)), abund_plot["log2FC"], color=colors, alpha=0.8, height=0.5)
+        ax.barh(range(len(abund_plot)), abund_plot["log2FC"], color=colors, alpha=0.8)
         for i, (_, row) in enumerate(abund_plot.iterrows()):
             star = "***" if row["padj"] < 0.001 else "**" if row["padj"] < 0.01 else "*" if row["padj"] < 0.05 else ""
             ax.text(row["log2FC"] + 0.05 * np.sign(row["log2FC"]), i, star, va="center", fontsize=10)
@@ -402,7 +360,7 @@ def main():
         ax.set_title("Cell Type Abundance: Responder vs Non-Responder\n(Patient-level Mann-Whitney)", fontweight="bold")
         plt.tight_layout()
         for ext in ["png", "pdf"]:
-            plt.savefig(FIG / f"02a_abundance_barplot.{ext}", dpi=200, bbox_inches="tight")
+            plt.savefig(FIG / f"02_abundance_barplot.{ext}", dpi=200, bbox_inches="tight")
         plt.close()
 
     # ─── Fig 4: Signature heatmap by tissue × response ─────────────
@@ -414,7 +372,7 @@ def main():
         ax.set_title("IO Signature Effects: R vs NR by Tissue", fontweight="bold")
         plt.tight_layout()
         for ext in ["png", "pdf"]:
-            plt.savefig(FIG / f"02a_tissue_signature_heatmap.{ext}", dpi=200, bbox_inches="tight")
+            plt.savefig(FIG / f"02_tissue_signature_heatmap.{ext}", dpi=200, bbox_inches="tight")
         plt.close()
 
     # ─── Fig 5: Scatter — Exhaustion vs Activation by response ─────
@@ -436,7 +394,7 @@ def main():
         plt.suptitle("T Cell Activation vs Exhaustion", fontweight="bold")
         plt.tight_layout()
         for ext in ["png", "pdf"]:
-            plt.savefig(FIG / f"02a_activation_exhaustion_scatter.{ext}", dpi=200, bbox_inches="tight")
+            plt.savefig(FIG / f"02_activation_exhaustion_scatter.{ext}", dpi=200, bbox_inches="tight")
         plt.close()
 
     # ─── Fig 6: Volcano plot of top DEGs (from largest cell type) ──
@@ -468,7 +426,7 @@ def main():
         ax.legend()
         plt.tight_layout()
         for ext in ["png", "pdf"]:
-            plt.savefig(FIG / f"02a_volcano_deg.{ext}", dpi=200, bbox_inches="tight")
+            plt.savefig(FIG / f"02_volcano_deg.{ext}", dpi=200, bbox_inches="tight")
         plt.close()
 
     # ─── Fig 7: Stacked bar — cell composition by response ────────
@@ -476,22 +434,14 @@ def main():
         fig, ax = plt.subplots(figsize=(10, 6))
         comp = pd.crosstab(io_cells.obs["response"], io_cells.obs["cell_type"], normalize="index")
         comp = comp[comp.mean().sort_values(ascending=False).index]  # Sort by abundance
-        # Group minor cell types (< 2% mean) into "Other"
-        top_n = 15
-        if comp.shape[1] > top_n:
-            top_cols = comp.mean().nlargest(top_n).index.tolist()
-            other_cols = [c for c in comp.columns if c not in top_cols]
-            comp_grouped = comp[top_cols].copy()
-            comp_grouped["Other"] = comp[other_cols].sum(axis=1)
-            comp = comp_grouped
-        comp.plot(kind="bar", stacked=True, ax=ax, colormap="tab20", width=0.5)
+        comp.plot(kind="bar", stacked=True, ax=ax, colormap="tab20", width=0.6)
         ax.set_ylabel("Fraction"); ax.set_xlabel("")
         ax.set_title("Cell Type Composition: R vs NR", fontweight="bold")
-        ax.legend(fontsize=8, bbox_to_anchor=(1.05, 1), loc="upper left")
+        ax.legend(fontsize=7, bbox_to_anchor=(1.05, 1), loc="upper left")
         ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
         plt.tight_layout()
         for ext in ["png", "pdf"]:
-            plt.savefig(FIG / f"02a_composition_stacked_bar.{ext}", dpi=200, bbox_inches="tight")
+            plt.savefig(FIG / f"02_composition_stacked_bar.{ext}", dpi=200, bbox_inches="tight")
         plt.close()
 
     # ─── Fig 8: Radar/Spider chart — signatures by response ───────
@@ -521,212 +471,8 @@ def main():
         ax.legend(loc="upper right", bbox_to_anchor=(1.3, 1.1))
         plt.tight_layout()
         for ext in ["png", "pdf"]:
-            plt.savefig(FIG / f"02a_signature_radar.{ext}", dpi=200, bbox_inches="tight")
+            plt.savefig(FIG / f"02_signature_radar.{ext}", dpi=200, bbox_inches="tight")
         plt.close()
-
-    # ═══════════════════════════════════════════════════════════════
-    # Fig 9: Enhanced cell-type annotation UMAP — Seaborn style
-    # ═══════════════════════════════════════════════════════════════
-    print("  [Fig 9] Cell-type annotation UMAP (Seaborn palette)...")
-    from matplotlib.patches import FancyBboxPatch
-    from scipy.sparse import issparse as _issparse
-
-    ct_palette_02a = {
-        # CD8 T cells (warm reds)
-        "CD8_T": "#D32F2F", "CD8_Dysfunctional-terminal": "#B71C1C",
-        "CD8_Dysfunctional-progenitor": "#C62828", "CD8_Dysfunctional-Proliferating": "#E53935",
-        "CD8_Dysfunctional-effector": "#EF5350", "CD8_Effector": "#F44336",
-        "CD8_Memory": "#FF5252", "CD8_Cytotoxic": "#FF1744",
-        # CD4 T cells (greens)
-        "CD4_T": "#388E3C", "CD4_Tfh-like": "#43A047",
-        "CD4_Th1 GZMK": "#66BB6A", "CD4_Th1/Th17": "#81C784",
-        "CD4_Effector-Memory": "#4CAF50", "CD4_Memory": "#2E7D32",
-        # Tregs (amber)
-        "Treg": "#F9A825", "Treg_Treg": "#FBC02D",
-        # NK (blues)
-        "NK": "#1565C0", # Unconventional T (teal)
-        "MAIT": "#00838F", "iNKT": "#00ACC1", "gdT": "#26C6DA",
-        "ILC": "#4DD0E1", "Naive_Naive": "#80DEEA",
-        # B / Plasma (oranges)
-        "B_cell": "#E65100", "B_Memory": "#EF6C00", "B_Naive": "#F57C00",
-        "B_Plasma": "#FB8C00", "Plasma": "#FF9800",
-        # Macrophages / Monocytes (purples)
-        "Macrophage": "#6A1B9A", "Macrophage_I": "#7B1FA2",
-        "Macrophage_II": "#8E24AA", "Macrophage_FCN1/CXCL9": "#9C27B0",
-        "Macrophage_FOLR2": "#AB47BC", "Macrophage_TREM2": "#BA68C8",
-        "Macrophage_Kupffer": "#CE93D8", "Macrophage_SPP1": "#7C4DFF",
-        "Monocyte_CD14": "#5E35B1", "Monocyte_CD14 SPP1": "#673AB7",
-        "Monocyte_CD16": "#7E57C2", "Monocyte_Intermediate": "#9575CD",
-        # DCs (pinks)
-        "mregDC": "#C2185B", "DC_mregDC": "#D81B60",
-        "cDC1": "#E91E63", "DC_cDC1": "#EC407A",
-        "cDC2": "#F06292", "DC_cDC2": "#F48FB1", "DC_pDC": "#F8BBD0",
-        # Stromal / Structural (earth + indigo)
-        "Hepatocyte": "#00695C", "Stromal_Hepatocytes": "#00897B",
-        "Endothelial": "#7986CB", "Stromal_Endothelial cells": "#9FA8DA",
-        "Fibroblast": "#8D6E63", "Stromal_HSC": "#A1887F",
-        "Tumor": "#37474F", "Mast": "#FF6F00",
-        # Other
-        "Proliferating_Proliferating": "#FFD600",
-        "Unknown": "#BDBDBD", "Unknown_Doublets": "#9E9E9E", "Unknown_Empty": "#E0E0E0",
-    }
-    with plt.style.context("seaborn-v0_8-whitegrid"):
-        fig, axes = plt.subplots(1, 2, figsize=(22, 9),
-                                 gridspec_kw={"width_ratios": [1.6, 1]})
-        ax = axes[0]
-        top_cts_umap = ct_counts.head(14).index.tolist()
-
-        # Background: all cells in light gray
-        ax.scatter(adata.obsm["X_umap"][:, 0], adata.obsm["X_umap"][:, 1],
-                   s=0.05, c="#eeeeee", alpha=0.2, rasterized=True)
-        # Overlay each cell type with jittered sizes for organic look
-        np.random.seed(42)
-        for ct in top_cts_umap:
-            mask_ct = (adata.obs["cell_type"] == ct).values
-            n_ct = mask_ct.sum()
-            if n_ct == 0:
-                continue
-            color = ct_palette_02a.get(ct, "#999999")
-            sizes = np.random.uniform(0.2, 1.0, size=n_ct)
-            ax.scatter(adata.obsm["X_umap"][mask_ct, 0],
-                       adata.obsm["X_umap"][mask_ct, 1],
-                       s=sizes, alpha=0.4, c=color,
-                       label=f"{ct} ({n_ct:,})", rasterized=True)
-        ax.legend(fontsize=7.5, markerscale=14, ncol=2, loc="upper left",
-                  frameon=True, fancybox=True, shadow=True, framealpha=0.9)
-        ax.set_title("Cell-Type Annotations", fontweight="bold", fontsize=14)
-        ax.set_xlabel("UMAP 1", fontsize=11)
-        ax.set_ylabel("UMAP 2", fontsize=11)
-
-        # Right panel: waffle-style proportional pie chart
-        ax_pie = axes[1]
-        ct_top_pie = ct_counts.head(12)
-        pie_colors = [ct_palette_02a.get(c, "#999") for c in ct_top_pie.index]
-        wedges, texts, autotexts = ax_pie.pie(
-            ct_top_pie.values, labels=None, colors=pie_colors,
-            autopct=lambda p: f"{p:.1f}%" if p > 2 else "",
-            startangle=140, pctdistance=0.8,
-            wedgeprops=dict(edgecolor="white", linewidth=1.5))
-        for at in autotexts:
-            at.set_fontsize(8)
-            at.set_fontweight("bold")
-        ax_pie.legend(ct_top_pie.index, fontsize=8, loc="center left",
-                      bbox_to_anchor=(0.95, 0.5), frameon=False)
-        ax_pie.set_title("Cell-Type Proportions", fontweight="bold", fontsize=13)
-
-        fig.suptitle(f"HCC IO Atlas — Cell-Type Map ({adata.n_obs:,} cells)",
-                     fontweight="bold", fontsize=15, y=1.01)
-        plt.tight_layout()
-        for ext in ["png", "pdf"]:
-            plt.savefig(FIG / f"02a_celltype_annotation_enhanced.{ext}",
-                        dpi=200, bbox_inches="tight")
-        plt.close()
-    print(f"    Saved {FIG / '02a_celltype_annotation_enhanced.png'}")
-
-    # ═══════════════════════════════════════════════════════════════
-    # Fig 10: Marker feature plots — viridis hexbin style
-    # ═══════════════════════════════════════════════════════════════
-    print("  [Fig 10] Per-cell-type marker feature plots (hexbin)...")
-
-    genes_avail = set(adata.raw.var_names) if adata.raw else set(adata.var_names)
-    _raw_idx = {g: i for i, g in enumerate(adata.raw.var_names)} if adata.raw else {}
-    _var_idx = {g: i for i, g in enumerate(adata.var_names)}
-
-    def _expr_vec(adata, gene):
-        """Return 1-D expression array for *gene*."""
-        if adata.raw and gene in _raw_idx:
-            x = adata.raw.X[:, _raw_idx[gene]]
-        elif gene in _var_idx:
-            x = adata.X[:, _var_idx[gene]]
-        else:
-            return None
-        if _issparse(x):
-            x = np.asarray(x.todense()).ravel()
-        else:
-            x = np.asarray(x).ravel()
-        return x
-
-    # Pick one representative marker per cell type
-    rep_markers_02a = {}
-    for ct, markers in CELL_TYPE_MARKERS.items():
-        for m in markers:
-            if m in genes_avail:
-                rep_markers_02a[ct] = m
-                break
-
-    n_markers = len(rep_markers_02a)
-    if n_markers > 0:
-        ncols_m = 4
-        nrows_m = (n_markers + ncols_m - 1) // ncols_m
-        fig, axes_m = plt.subplots(nrows_m, ncols_m,
-                                    figsize=(5.5 * ncols_m, 4.5 * nrows_m))
-        axes_m = np.atleast_2d(axes_m)
-        axf = axes_m.flatten()
-
-        colormaps = ["viridis", "inferno", "plasma", "cividis",
-                     "YlOrRd", "YlGnBu", "RdPu", "BuGn",
-                     "OrRd", "PuBuGn", "GnBu", "YlOrBr",
-                     "PuRd", "Blues"]
-
-        for i, (ct, gene) in enumerate(rep_markers_02a.items()):
-            ax = axf[i]
-            expr = _expr_vec(adata, gene)
-            if expr is None:
-                ax.set_visible(False)
-                continue
-
-            cmap_name = colormaps[i % len(colormaps)]
-            umap_xy = adata.obsm["X_umap"]
-
-            # Hexbin for a clean, publication-quality density look
-            hb = ax.hexbin(umap_xy[:, 0], umap_xy[:, 1], C=expr,
-                           gridsize=120, cmap=cmap_name, mincnt=1,
-                           reduce_C_function=np.mean, linewidths=0.0)
-            cb = plt.colorbar(hb, ax=ax, fraction=0.04, pad=0.02)
-            cb.ax.tick_params(labelsize=7)
-            cb.set_label("Expr", fontsize=8)
-            ax.set_title(f"{ct}\n{gene}", fontweight="bold", fontsize=10)
-            ax.set_xlabel("UMAP 1", fontsize=8)
-            ax.set_ylabel("UMAP 2", fontsize=8)
-            ax.tick_params(labelsize=7)
-            ax.spines["top"].set_visible(False)
-            ax.spines["right"].set_visible(False)
-
-        for j in range(i + 1, len(axf)):
-            axf[j].set_visible(False)
-
-        fig.suptitle("Cell-Type Marker Expression — Hexbin Feature Plots",
-                     fontweight="bold", fontsize=15, y=1.01)
-        plt.tight_layout()
-        for ext in ["png", "pdf"]:
-            fig.savefig(FIG / f"02a_marker_feature_hexbin.{ext}",
-                        dpi=200, bbox_inches="tight")
-        plt.close()
-        print(f"    Saved {FIG / '02a_marker_feature_hexbin.png'}")
-
-    # ═══════════════════════════════════════════════════════════════
-    # Fig 11: Marker dot plot — scanpy-style (bubble matrix)
-    # ═══════════════════════════════════════════════════════════════
-    print("  [Fig 11] Marker dot plot (bubble matrix)...")
-    all_marker_genes = []
-    for markers in CELL_TYPE_MARKERS.values():
-        for g in markers:
-            if g in genes_avail and g not in all_marker_genes:
-                all_marker_genes.append(g)
-
-    if len(all_marker_genes) >= 4 and "cell_type" in adata.obs.columns:
-        try:
-            fig_dp = sc.pl.dotplot(
-                adata, var_names=all_marker_genes[:30],
-                groupby="cell_type", standard_scale="var",
-                cmap="Reds", return_fig=True,
-            )
-            fig_dp.savefig(FIG / "02a_marker_dotplot.png", dpi=200, bbox_inches="tight")
-            fig_dp.savefig(FIG / "02a_marker_dotplot.pdf", bbox_inches="tight")
-            plt.close()
-            print(f"    Saved {FIG / '02a_marker_dotplot.png'}")
-        except Exception as e:
-            print(f"    [WARN] dotplot failed: {e}")
 
     # ── Save updated adata ─────────────────────────────────────────
     adata.write(PROC / "integrated_io_atlas.h5ad")

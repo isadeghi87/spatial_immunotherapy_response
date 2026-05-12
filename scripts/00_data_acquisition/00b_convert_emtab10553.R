@@ -32,7 +32,7 @@ cat("Dimensions:", ncol(obj), "cells x", nrow(obj), "genes\n")
 # Extract count matrix
 cat("Extracting count matrix...\n")
 if (inherits(obj, "Seurat")) {
-  counts <- LayerData(obj, layer = "counts")
+  counts <- GetAssayData(obj, slot = "counts")
   meta   <- obj@meta.data
 } else {
   stop("Unexpected object class: ", class(obj))

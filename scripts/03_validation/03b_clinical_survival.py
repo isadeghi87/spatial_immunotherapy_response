@@ -8,6 +8,9 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import seaborn as sns
+import sys; sys.path.insert(0, str(__import__('pathlib').Path(__file__).resolve().parents[2]))
+from config.publication_style import apply_style, PAL, CMAP, label_clean
+apply_style()
 from pathlib import Path
 from scipy.interpolate import make_interp_spline
 
@@ -27,10 +30,10 @@ def plot_clinical_translation():
     
     fig, ax = plt.subplots(1, 2, figsize=(14, 5))
     
-    ax[0].step(t, surv_high, color="#2ecc71", linewidth=2.5, label="High IO Spatial Score (n=60)")
-    ax[0].step(t, surv_low, color="#e74c3c", linewidth=2.5, label="Low IO Spatial Score (n=62)")
-    censors_h = np.random.choice(t, 10); ax[0].plot(censors_h, np.exp(-0.02*censors_h), '|', color='#2ecc71', markersize=10)
-    censors_l = np.random.choice(t, 10); ax[0].plot(censors_l, np.exp(-0.08*censors_l), '|', color='#e74c3c', markersize=10)
+    ax[0].step(t, surv_high, color="#0077BB", linewidth=2.5, label="High IO Spatial Score (n=60)")
+    ax[0].step(t, surv_low, color="#CC3311", linewidth=2.5, label="Low IO Spatial Score (n=62)")
+    censors_h = np.random.choice(t, 10); ax[0].plot(censors_h, np.exp(-0.02*censors_h), '|', color='#0077BB', markersize=10)
+    censors_l = np.random.choice(t, 10); ax[0].plot(censors_l, np.exp(-0.08*censors_l), '|', color='#CC3311', markersize=10)
     
     ax[0].set_ylim(0, 1.05)
     ax[0].set_xlabel("Time (Months)")

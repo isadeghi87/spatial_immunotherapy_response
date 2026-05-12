@@ -14,6 +14,9 @@ import scanpy as sc
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import sys; sys.path.insert(0, str(__import__('pathlib').Path(__file__).resolve().parents[2]))
+from config.publication_style import apply_style, PAL, CMAP, label_clean
+apply_style()
 from matplotlib.colors import LinearSegmentedColormap
 from scipy.ndimage import gaussian_filter1d
 from pathlib import Path
@@ -67,7 +70,9 @@ def plot_tcell_trajectory(adata_path=None):
 
     # ── recompute neighbors + diffmap + DPT ──────────────────────────
     print("  Computing neighbors on CD8 subset …")
-    if "X_pca_harmony" in adata_cd8.obsm:
+    if "X_scVI" in adata_cd8.obsm:
+        sc.pp.neighbors(adata_cd8, use_rep="X_scVI", n_neighbors=15)
+    elif "X_pca_harmony" in adata_cd8.obsm:
         sc.pp.neighbors(adata_cd8, use_rep="X_pca_harmony", n_neighbors=15)
     else:
         sc.pp.neighbors(adata_cd8, n_neighbors=15)
@@ -99,10 +104,34 @@ def plot_tcell_trajectory(adata_path=None):
     umap = adata_cd8.obsm["X_umap"]
     dpt = adata_cd8.obs["dpt_pseudotime"].values
 
+    # Clip infinite pseudotime values for cleaner plotting
+    dpt_clipped = dpt.copy()
+    finite_mask_plot = np.isfinite(dpt_clipped)
+    if finite_mask_plot.sum() < len(dpt_clipped):
+        max_finite = np.nanmax(dpt_clipped[finite_mask_plot])
+        dpt_clipped[~finite_mask_plot] = max_finite
+
     # Sort by pseudotime for proper layering
-    order = np.argsort(dpt)
-    sc_plot = ax.scatter(umap[order, 0], umap[order, 1], c=dpt[order],
+    order = np.argsort(dpt_clipped)
+    sc_plot = ax.scatter(umap[order, 0], umap[order, 1], c=dpt_clipped[order],
                          cmap=cmap_pt, s=6, alpha=0.7, edgecolor="none", rasterized=True)
+
+    # Annotate cell states along the trajectory
+    ct_col = _resolve_celltype_col(adata_cd8)
+    ct_vals = adata_cd8.obs[ct_col].astype(str).values
+    unique_cts = pd.Series(ct_vals).value_counts()
+    # Label the top cell subtypes at their UMAP centroids
+    for ct_name in unique_cts.index[:6]:  # top 6 cell states
+        ct_mask = ct_vals == ct_name
+        if ct_mask.sum() < 20:
+            continue
+        cx, cy = umap[ct_mask, 0].mean(), umap[ct_mask, 1].mean()
+        short_name = ct_name.split("_")[-1] if "_" in ct_name else ct_name
+        short_name = short_name.replace("-", "\n", 1) if len(short_name) > 15 else short_name
+        ax.annotate(short_name, (cx, cy), fontsize=7, fontweight="bold",
+                    ha="center", va="center", color="black",
+                    bbox=dict(boxstyle="round,pad=0.2", facecolor="white",
+                              edgecolor="gray", alpha=0.75))
 
     # Smooth trajectory arrows via pseudotime-binned UMAP centroids
     finite = np.isfinite(dpt)
@@ -139,9 +168,9 @@ def plot_tcell_trajectory(adata_path=None):
     ax = axes[1]
     marker_genes = {
         "IL7R":   ("#3498db", "IL7R (Naive/Memory)"),
-        "GZMB":   ("#2ecc71", "GZMB (Effector)"),
+        "GZMB":   ("#0077BB", "GZMB (Effector)"),
         "PRF1":   ("#27ae60", "PRF1 (Cytotoxic)"),
-        "TOX":    ("#e74c3c", "TOX (Exhaustion)"),
+        "TOX":    ("#CC3311", "TOX (Exhaustion)"),
         "TCF7":   ("#9b59b6", "TCF7 (Progenitor)"),
         "HAVCR2": ("#e67e22", "HAVCR2/TIM3 (Terminal Exh)"),
         "PDCD1":  ("#c0392b", "PDCD1/PD-1 (Checkpoint)"),

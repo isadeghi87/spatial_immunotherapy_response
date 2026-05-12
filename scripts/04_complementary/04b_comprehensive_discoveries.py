@@ -12,6 +12,9 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import seaborn as sns
+import sys; sys.path.insert(0, str(__import__('pathlib').Path(__file__).resolve().parents[2]))
+from config.publication_style import apply_style, PAL, CMAP, label_clean
+apply_style()
 from pathlib import Path
 from scipy.stats import mannwhitneyu
 
@@ -69,7 +72,7 @@ def read_tcr_data():
 
     plt.figure(figsize=(5, 5))
     sns.barplot(x=exp_frac.index, y=exp_frac["Expanded"].values,
-                palette=["#2ecc71", "#e74c3c"])
+                palette=["#0077BB", "#CC3311"])
     plt.title("TCR Clonal Expansion by Response", fontweight="bold")
     plt.ylabel("Fraction of T cells with Expanded Clonotypes")
     plt.tight_layout()
@@ -145,7 +148,7 @@ def real_cell_comm():
     agg = df.groupby(["Network", "Response"])["Strength"].mean().reset_index()
     plt.figure(figsize=(8, 5))
     sns.barplot(data=agg, x="Network", y="Strength", hue="Response",
-                palette=["#2ecc71", "#e74c3c"])
+                palette=["#0077BB", "#CC3311"])
     plt.title("Cell-Cell Communication Information Flow (Real)", fontweight="bold")
     plt.xticks(rotation=30, ha="right")
     plt.tight_layout()

@@ -80,7 +80,7 @@ P = {
     "pathway_enrich":      PROJECT / "out" / "03_validation" / "figures" / "03_pathway_enrichment.png",
     "survival":            PROJECT / "out" / "03_validation" / "figures" / "03b_clinical_survival_validation.png",
     # 04 — Complementary
-    "trajectory":          PROJECT / "out" / "04_complementary" / "figures" / "04c_tcell_pseudotime_trajectories.png",
+    "trajectory":          PROJECT / "out" / "04_complementary" / "figures" / "04i_trajectory_response.png",
     "metabolic":           PROJECT / "out" / "04_complementary" / "figures" / "04f_metabolic_reprogramming.png",
     "tls":                 PROJECT / "out" / "04_complementary" / "figures" / "04g_tls_spatial_hubs.png",
     "cd8_states":          PROJECT / "out" / "04_complementary" / "figures" / "04_cd8_states.png",
@@ -178,7 +178,7 @@ def figure1():
     _place(fig.add_subplot(gs[1, 1]), "composition_bar",  "D")
     fig.suptitle(
         "Figure 1  |  Integrated HCC IO atlas  —  ~970 000 cells, "
-        "5 cohorts, 24 Responder / Non-Responder patients",
+        "5 cohorts, 56 ICB-labelled patients (24 discovery + 32 validation)",
         fontsize=14, fontweight="bold", y=1.01)
     _save(fig, "Figure1_atlas_landscape")
 

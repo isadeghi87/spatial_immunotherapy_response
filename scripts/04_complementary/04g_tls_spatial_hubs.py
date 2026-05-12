@@ -14,6 +14,9 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import seaborn as sns
+import sys; sys.path.insert(0, str(__import__('pathlib').Path(__file__).resolve().parents[2]))
+from config.publication_style import apply_style, PAL, CMAP, label_clean
+apply_style()
 from pathlib import Path
 from scipy.stats import mannwhitneyu
 
@@ -54,7 +57,15 @@ def plot_tls(adata_path=None):
     step = max(1, n // 50000)
     idx = np.arange(0, n, step)
 
-    sc_plot = ax.scatter(umap[idx, 0], umap[idx, 1], c=tls[idx], cmap="magma",
+    # Clip extreme outliers for colormap contrast
+    tls_plot = tls[idx]
+    vmin, vmax = np.nanpercentile(tls_plot, [2, 98])
+
+    # Sort by score for proper layering (low in back, high in front)
+    order = np.argsort(tls_plot)
+    sc_plot = ax.scatter(umap[idx[order], 0], umap[idx[order], 1],
+                         c=tls_plot[order], cmap="viridis",
+                         vmin=vmin, vmax=vmax,
                          s=3, alpha=0.7, edgecolor="none", rasterized=True)
     ax.set_title("A. TLS 12-Gene Signature on UMAP", fontweight="bold")
     ax.set_xticks([]); ax.set_yticks([])
@@ -77,7 +88,14 @@ def plot_tls(adata_path=None):
             g1 = df.loc[df["response"] == groups[0], "tls_score"]
             g2 = df.loc[df["response"] == groups[1], "tls_score"]
             stat, pval = mannwhitneyu(g1, g2, alternative="two-sided")
-            ax.text(0.5, 0.95, f"Mann-Whitney p = {pval:.2e}", transform=ax.transAxes,
+            # Format p-value properly (avoid 0.00e+00)
+            if pval < 1e-300:
+                p_str = "p < 1e-300"
+            elif pval < 0.001:
+                p_str = f"p = {pval:.2e}"
+            else:
+                p_str = f"p = {pval:.4f}"
+            ax.text(0.5, 0.95, f"Mann-Whitney {p_str}", transform=ax.transAxes,
                     ha="center", fontsize=11, fontweight="bold",
                     bbox=dict(facecolor="white", edgecolor="black", boxstyle="round,pad=0.3"))
     else:

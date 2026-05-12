@@ -71,52 +71,26 @@ CELL_TYPE_MARKERS = {
 
 
 def load_gse173905():
-    """Load GSE173905 (Wu et al. 2021) HCC bulk RNA-seq as pseudo-bulk samples.
-
-    Each file contains gene-level counts & FPKM for one sample.
-    Columns: gene_id, <sample>_count, <sample>_fpkm, gene_name, gene_chr, ...
-    Groups: NC (non-cancer), ER (early recurrence), RS (recurrence-sensitive).
-    We load FPKM values and use gene_name as var index.
-    """
-    print("[GSE173905] Loading Wu 2021 HCC pseudo-bulk RNA-seq data...")
+    """Load GSE173905 (Wu et al. 2021) Visium spatial transcriptomics."""
+    print("[GSE173905] Loading Wu 2021 Visium HCC data...")
     d = DATA / "spatial_data" / "GSE173905_Wu2021_Visium"
-    gz_files = sorted(d.glob("*.xls.gz"))
+    gz_files = sorted(d.glob("*.gz"))
     if not gz_files:
-        print("  [SKIP] No .xls.gz files found")
+        print("  [SKIP] No .gz files found")
         return []
 
     datasets = []
     for gz in gz_files:
         sample_name = gz.stem.replace("fpkm.xls", "").rstrip(".")
         try:
-            df = pd.read_csv(gz, sep="\t")
-            # Identify count and fpkm columns
-            count_col = [c for c in df.columns if c.endswith("_count")][0]
-            fpkm_col = [c for c in df.columns if c.endswith("_fpkm")][0]
-            # Use gene_name as identifier, drop duplicates
-            df = df.dropna(subset=["gene_name"])
-            df = df.drop_duplicates(subset="gene_name", keep="first")
-            gene_names = df["gene_name"].values
-            counts = df[count_col].values.astype(np.float64)
-
-            # Create AnnData with 1 "spot" = 1 pseudo-bulk sample
-            adata = sc.AnnData(
-                X=np.array([counts]),
-                obs=pd.DataFrame(index=[sample_name]),
-                var=pd.DataFrame(index=gene_names),
-            )
+            df = pd.read_csv(gz, sep="\t", index_col=0, compression="gzip")
+            adata = sc.AnnData(X=df.values.T, obs=pd.DataFrame(index=df.columns),
+                               var=pd.DataFrame(index=df.index))
             adata.var_names_make_unique()
             adata.obs["sample"] = sample_name
             adata.obs["dataset"] = "GSE173905"
-            # Assign group from sample name prefix
-            if "NC" in sample_name:
-                adata.obs["group"] = "Non_Cancer"
-            elif "ER" in sample_name:
-                adata.obs["group"] = "Early_Recurrence"
-            elif "RS" in sample_name:
-                adata.obs["group"] = "Recurrence_Sensitive"
             datasets.append(adata)
-            print(f"  {sample_name}: 1 pseudo-bulk × {adata.n_vars} genes")
+            print(f"  {sample_name}: {adata.n_obs} spots × {adata.n_vars} genes")
         except Exception as e:
             print(f"  [WARN] Failed to load {gz.name}: {e}")
     return datasets
@@ -322,162 +296,53 @@ def main():
     print("Prompt 3: Spatial Biomarker Discovery")
     print("=" * 70)
 
-    # ── Load spatial / pseudo-bulk datasets ────────────────────────
-    gse_datasets = load_gse173905()
-    hcc_datasets = load_hcc_omics_visium()
+    # ── Load spatial datasets ──────────────────────────────────────
+    all_spatial = []
+    all_spatial.extend(load_gse173905())
+    all_spatial.extend(load_hcc_omics_visium())
 
-    has_spatial = len(hcc_datasets) > 0  # true Visium data from HCC_omics
-    has_pseudobulk = len(gse_datasets) > 0  # GSE173905 pseudo-bulk
-
-    if not has_spatial and not has_pseudobulk:
-        print("[ERROR] No spatial or pseudo-bulk datasets available.")
+    if not all_spatial:
+        print("[ERROR] No spatial datasets available.")
         return
 
-    # ── Part A: True spatial analysis (HCC_omics Visium) ───────────
-    if has_spatial:
-        print(f"\n  True spatial datasets: {len(hcc_datasets)}")
-        all_features = []
-        for adata in hcc_datasets:
-            sample_name = adata.obs["sample"].iloc[0]
-            print(f"\n--- Analyzing {sample_name} ---")
+    print(f"\n  Total spatial datasets: {len(all_spatial)}")
 
-            if adata.X.max() > 100:
-                adata.layers["counts"] = adata.X.copy()
-                sc.pp.normalize_total(adata, target_sum=1e4)
-                sc.pp.log1p(adata)
+    # ── Per-sample analysis ────────────────────────────────────────
+    all_features = []
+    for adata in all_spatial:
+        sample_name = adata.obs["sample"].iloc[0]
+        print(f"\n--- Analyzing {sample_name} ---")
 
-            n_top = min(2000, adata.n_vars)
-            if adata.n_obs >= 10:
-                sc.pp.highly_variable_genes(adata, n_top_genes=n_top, flavor="seurat_v3",
-                                            span=1.0 if adata.n_obs < 5000 else 0.3)
-            n_comps = min(30, adata.n_obs - 1, adata.n_vars - 1)
-            if n_comps >= 2:
-                sc.tl.pca(adata, n_comps=n_comps, use_highly_variable=True)
-                sc.pp.neighbors(adata, n_pcs=min(20, n_comps))
-                sc.tl.umap(adata)
+        # Normalize if needed
+        if adata.X.max() > 100:
+            adata.layers["counts"] = adata.X.copy()
+            sc.pp.normalize_total(adata, target_sum=1e4)
+            sc.pp.log1p(adata)
 
-            scored = score_spatial_signatures(adata)
-            adata = classify_spatial_immunotype(adata)
-            features = compute_spatial_features(adata, sample_name)
-            all_features.append(features)
-            plot_spatial_overview(adata, scored, sample_name)
+        sc.pp.highly_variable_genes(adata, n_top_genes=2000, flavor="seurat_v3",
+                                    span=1.0 if adata.n_obs < 5000 else 0.3)
+        sc.tl.pca(adata, n_comps=min(30, adata.n_obs - 1), use_highly_variable=True)
+        sc.pp.neighbors(adata, n_pcs=min(20, adata.obsm["X_pca"].shape[1]))
+        sc.tl.umap(adata)
 
-        if all_features:
-            features_df = pd.DataFrame(all_features)
-            features_df.to_csv(TAB / "spatial_features_per_sample.csv", index=False)
-            print(f"\n  Spatial features table: {features_df.shape}")
-            plot_sample_comparison(features_df, scored)
+        scored = score_spatial_signatures(adata)
+        adata = classify_spatial_immunotype(adata)
+        features = compute_spatial_features(adata, sample_name)
+        all_features.append(features)
 
-    # ── Part B: Pseudo-bulk analysis (GSE173905) ───────────────────
-    if has_pseudobulk:
-        print(f"\n  Pseudo-bulk datasets (GSE173905): {len(gse_datasets)}")
+        plot_spatial_overview(adata, scored, sample_name)
 
-        # Concatenate into one AnnData
-        combined = sc.concat(gse_datasets, join="inner")
-        combined.obs_names_make_unique()
-        print(f"  Combined: {combined.n_obs} samples × {combined.n_vars} genes")
-
-        # Normalize
-        if combined.X.max() > 100:
-            combined.layers["counts"] = combined.X.copy()
-            sc.pp.normalize_total(combined, target_sum=1e4)
-            sc.pp.log1p(combined)
-
-        # Score IO signatures
-        scored = score_spatial_signatures(combined)
-
-        # Build group comparison figure
-        sig_cols = [s for s in scored if s in combined.obs.columns]
-        if sig_cols and "group" in combined.obs.columns:
-            groups = combined.obs["group"].unique()
-            print(f"\n  Groups: {list(groups)}")
-
-            # Fig 1: Heatmap of IO signatures across samples
-            fig, axes = plt.subplots(1, 2, figsize=(16, 6))
-
-            ax = axes[0]
-            plot_df = combined.obs.set_index(combined.obs.index)[sig_cols]
-            plot_df["group"] = combined.obs["group"].values
-            plot_df = plot_df.sort_values("group")
-            plot_mat = plot_df[sig_cols]
-            sns.heatmap(plot_mat.T, cmap="RdBu_r", center=0, ax=ax, annot=True, fmt=".2f",
-                        xticklabels=plot_df.index, yticklabels=[s.replace("_", " ") for s in sig_cols],
-                        linewidths=0.5)
-            ax.set_title("A. IO Signature Scores by Sample", fontweight="bold")
-            ax.tick_params(labelsize=7)
-
-            # Fig 2: Group means barplot
-            ax = axes[1]
-            group_means = combined.obs.groupby("group")[sig_cols].mean().T
-            group_means.columns = [c.replace("_", " ") for c in group_means.columns]
-            group_means.index = [s.replace("_", " ") for s in group_means.index]
-            group_means.plot(kind="barh", ax=ax, colormap="Set2")
-            ax.set_title("B. Mean IO Signatures by Group", fontweight="bold")
-            ax.set_xlabel("Signature Score")
-            ax.legend(fontsize=8)
-
-            plt.suptitle("GSE173905: HCC Pseudo-Bulk IO Signature Analysis", fontweight="bold", fontsize=13)
-            plt.tight_layout()
-            for ext in ["png", "pdf"]:
-                plt.savefig(FIG / f"02b_pseudobulk_io_signatures.{ext}", dpi=200, bbox_inches="tight")
-            plt.close()
-
-            # Group comparison stats (Mann-Whitney where possible)
-            stat_results = []
-            if len(groups) >= 2:
-                # Compare Early_Recurrence vs Recurrence_Sensitive
-                g1, g2 = "Early_Recurrence", "Recurrence_Sensitive"
-                mask1 = combined.obs["group"] == g1
-                mask2 = combined.obs["group"] == g2
-                if mask1.sum() >= 2 and mask2.sum() >= 2:
-                    for sig in sig_cols:
-                        u, p = mannwhitneyu(
-                            combined.obs.loc[mask1, sig].values,
-                            combined.obs.loc[mask2, sig].values,
-                            alternative="two-sided"
-                        )
-                        stat_results.append({
-                            "signature": sig, "group1": g1, "group2": g2,
-                            "mean_g1": combined.obs.loc[mask1, sig].mean(),
-                            "mean_g2": combined.obs.loc[mask2, sig].mean(),
-                            "U_stat": u, "p_value": p
-                        })
-
-            if stat_results:
-                stats_df = pd.DataFrame(stat_results).sort_values("p_value")
-                stats_df.to_csv(TAB / "pseudobulk_group_comparison.csv", index=False)
-                print(f"\n  Group comparison stats saved ({len(stats_df)} tests)")
-
-            # ------------- ADD UMAP / PCA ---------------
-            print("\n[UMAP] Generating Pseudo-Bulk Sample Embeddings...")
-            if len(combined) >= 4:
-                sc.pp.pca(combined, n_comps=min(15, len(combined)-1))
-                sc.pp.neighbors(combined, use_rep="X_pca", n_neighbors=min(15, len(combined)-1))
-                sc.tl.umap(combined)
-                
-                fig, axes = plt.subplots(1, 2, figsize=(11, 5))
-                sc.pl.pca(combined, color="group", size=200, ax=axes[0], show=False)
-                axes[0].set_title("A. PCA by Group", fontweight="bold")
-                
-                sc.pl.umap(combined, color="group", size=200, ax=axes[1], show=False)
-                axes[1].set_title("B. UMAP by Group", fontweight="bold")
-                
-                plt.suptitle("Sample Embeddings: GSE173905 Pseudo-Bulk", fontweight="bold", fontsize=12)
-                plt.tight_layout()
-                for ext in ["png", "pdf"]:
-                    plt.savefig(FIG / f"02b_pseudobulk_embeddings.{ext}", dpi=200, bbox_inches="tight")
-                plt.close()
-            # --------------------------------------------
-
-        # Save scored pseudo-bulk data
-        combined.write(TAB / "GSE173905_pseudobulk_scored.h5ad")
-        print(f"  Scored pseudo-bulk saved to {TAB / 'GSE173905_pseudobulk_scored.h5ad'}")
+    # ── Cross-sample comparison ────────────────────────────────────
+    features_df = pd.DataFrame(all_features)
+    features_df.to_csv(TAB / "spatial_features_per_sample.csv", index=False)
+    print(f"\n  Spatial features table: {features_df.shape}")
+    plot_sample_comparison(features_df, scored)
 
     print(f"\n{'='*70}")
     print("[DONE] Spatial Biomarker Discovery")
     print(f"  Figures: {FIG}")
     print(f"  Tables:  {TAB}")
-    print(f"{'='*70}")
+    print(f"={'='*70}")
 
 
 if __name__ == "__main__":

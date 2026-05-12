@@ -9,6 +9,9 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import seaborn as sns
+import sys; sys.path.insert(0, str(__import__('pathlib').Path(__file__).resolve().parents[2]))
+from config.publication_style import apply_style, PAL, CMAP, label_clean
+apply_style()
 from pathlib import Path
 
 # Directories
@@ -29,7 +32,7 @@ def plot_deg_heatmap():
     counts = df_sig.groupby(["cell_type", "direction"]).size().unstack(fill_value=0)
     
     fig, ax = plt.subplots(figsize=(8, 6))
-    counts.plot(kind="bar", stacked=True, ax=ax, color=["#e74c3c", "#2ecc71"])
+    counts.plot(kind="bar", stacked=True, ax=ax, color=["#CC3311", "#0077BB"])
     ax.set_title("Number of Significant DEGs per Cell Type\n(Responder vs Non-Responder)", fontweight="bold")
     ax.set_ylabel("Number of DEGs")
     ax.set_xlabel("Cell Type")

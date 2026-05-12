@@ -22,6 +22,9 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import seaborn as sns
+import sys; sys.path.insert(0, str(__import__('pathlib').Path(__file__).resolve().parents[2]))
+from config.publication_style import apply_style, PAL, CMAP, label_clean
+apply_style()
 from pathlib import Path
 from scipy.stats import mannwhitneyu, spearmanr, fisher_exact, entropy
 from scipy.cluster.hierarchy import linkage, leaves_list
@@ -191,7 +194,7 @@ def pathway_enrichment_analysis(adata):
     # Fig: Pathway effect sizes
     fig, ax = plt.subplots(figsize=(10, 8))
     pw_plot = pw_df.sort_values("effect")
-    colors = ["#2ecc71" if e > 0 else "#e74c3c" for e in pw_plot["effect"]]
+    colors = ["#0077BB" if e > 0 else "#CC3311" for e in pw_plot["effect"]]
     stars = []
     for _, row in pw_plot.iterrows():
         s = "***" if row["padj"] < 0.001 else "**" if row["padj"] < 0.01 else "*" if row["padj"] < 0.05 else ""
@@ -271,7 +274,7 @@ def ligand_receptor_analysis(adata):
         # Fig: LR interaction comparison
         fig, ax = plt.subplots(figsize=(10, 8))
         labels = [f"{row.Index[0]}→{row.Index[1]}" for row in lr_wide.itertuples()]
-        colors = ["#2ecc71" if fc > 0 else "#e74c3c" for fc in lr_wide["log2FC"]]
+        colors = ["#0077BB" if fc > 0 else "#CC3311" for fc in lr_wide["log2FC"]]
         ax.barh(range(len(lr_wide)), lr_wide["log2FC"], color=colors, alpha=0.85, height=0.5)
         ax.set_yticks(range(len(lr_wide)))
         ax.set_yticklabels(labels, fontsize=8)
@@ -386,7 +389,7 @@ def cd8_state_analysis(adata):
             id_vars="response", var_name="State", value_name="Score")
         order = scored_states
         sns.boxplot(data=melt, x="State", y="Score", hue="response",
-                    ax=ax, palette={"Responder": "#2ecc71", "Non-Responder": "#e74c3c"},
+                    ax=ax, palette={"Responder": "#0077BB", "Non-Responder": "#CC3311"},
                     fliersize=0.5, linewidth=0.8)
         ax.set_title("B. CD8 State Scores: R vs NR", fontweight="bold")
         ax.tick_params(axis="x", rotation=30, labelsize=8)
@@ -514,8 +517,8 @@ def clonotype_diversity(adata):
             nr_vals = div_df.loc[div_df["response"] == "Non-Responder", metric]
             bp = ax.boxplot([r_vals, nr_vals], labels=["R", "NR"], patch_artist=True,
                            widths=0.5, showfliers=True)
-            bp["boxes"][0].set_facecolor("#2ecc71")
-            bp["boxes"][1].set_facecolor("#e74c3c")
+            bp["boxes"][0].set_facecolor("#0077BB")
+            bp["boxes"][1].set_facecolor("#CC3311")
             if len(r_vals) >= 3 and len(nr_vals) >= 3:
                 stat, pval = mannwhitneyu(r_vals, nr_vals, alternative="two-sided")
                 ax.set_title(f"{label}\np={pval:.2e}", fontsize=9)
@@ -524,7 +527,7 @@ def clonotype_diversity(adata):
             # Overlay individual points
             for j, (vals, x) in enumerate([(r_vals, 1), (nr_vals, 2)]):
                 ax.scatter(np.random.normal(x, 0.05, len(vals)), vals,
-                          alpha=0.6, s=20, c=["#2ecc71", "#e74c3c"][j], zorder=5)
+                          alpha=0.6, s=20, c=["#0077BB", "#CC3311"][j], zorder=5)
         plt.suptitle("TCR Clonotype Diversity: R vs NR", fontweight="bold", fontsize=13)
         plt.tight_layout()
         for ext in ["png", "pdf"]:
@@ -605,13 +608,13 @@ def immune_ratio_biomarkers(adata):
 
         bp = ax.boxplot([r_vals, nr_vals], labels=["R", "NR"], patch_artist=True,
                        widths=0.5, showfliers=True)
-        bp["boxes"][0].set_facecolor("#2ecc71")
-        bp["boxes"][1].set_facecolor("#e74c3c")
+        bp["boxes"][0].set_facecolor("#0077BB")
+        bp["boxes"][1].set_facecolor("#CC3311")
 
         # Overlay points
         for j, (vals, x) in enumerate([(r_vals, 1), (nr_vals, 2)]):
             ax.scatter(np.random.normal(x, 0.05, len(vals)), vals,
-                      alpha=0.6, s=20, c=["#2ecc71", "#e74c3c"][j], zorder=5)
+                      alpha=0.6, s=20, c=["#0077BB", "#CC3311"][j], zorder=5)
 
         if len(r_vals) >= 3 and len(nr_vals) >= 3:
             stat, pval = mannwhitneyu(r_vals, nr_vals, alternative="two-sided")
@@ -704,7 +707,7 @@ def patient_immune_subtyping(adata):
 
     # Color bars for response and subtype
     col_colors_resp = patient_df.set_index("patient_ID")["response"].map(
-        {"Responder": "#2ecc71", "Non-Responder": "#e74c3c"})
+        {"Responder": "#0077BB", "Non-Responder": "#CC3311"})
     subtype_colors = {"Subtype_1": "#3498db", "Subtype_2": "#f39c12", "Subtype_3": "#9b59b6"}
     col_colors_sub = patient_df.set_index("patient_ID")["immune_subtype"].map(subtype_colors)
 
@@ -797,7 +800,7 @@ def summary_figure(adata, pw_df, lr_df):
 
     # Panel A: UMAP by response
     ax = axes[0, 0]
-    resp_colors = {"Responder": "#2ecc71", "Non-Responder": "#e74c3c"}
+    resp_colors = {"Responder": "#0077BB", "Non-Responder": "#CC3311"}
     for resp, color in resp_colors.items():
         mask = io_cells.obs["response"] == resp
         if mask.sum() > 0:
@@ -816,7 +819,7 @@ def summary_figure(adata, pw_df, lr_df):
         nr_mean = io_cells.obs.loc[io_cells.obs["response"] == "Non-Responder", sig].mean()
         effects.append({"signature": sig, "effect": r_mean - nr_mean})
     eff_df = pd.DataFrame(effects).sort_values("effect")
-    colors = ["#2ecc71" if e > 0 else "#e74c3c" for e in eff_df["effect"]]
+    colors = ["#0077BB" if e > 0 else "#CC3311" for e in eff_df["effect"]]
     ax.barh(range(len(eff_df)), eff_df["effect"], color=colors, height=0.5)
     ax.set_yticks(range(len(eff_df)))
     ax.set_yticklabels(eff_df["signature"].str.replace("_", " "), fontsize=7)
@@ -828,7 +831,7 @@ def summary_figure(adata, pw_df, lr_df):
     ax = axes[0, 2]
     if pw_df is not None and len(pw_df) > 0:
         top_pw = pd.concat([pw_df.nlargest(8, "effect"), pw_df.nsmallest(4, "effect")]).sort_values("effect")
-        colors_pw = ["#2ecc71" if e > 0 else "#e74c3c" for e in top_pw["effect"]]
+        colors_pw = ["#0077BB" if e > 0 else "#CC3311" for e in top_pw["effect"]]
         ax.barh(range(len(top_pw)), top_pw["effect"], color=colors_pw, height=0.5)
         ax.set_yticks(range(len(top_pw)))
         ax.set_yticklabels(top_pw["pathway"].str.replace("_", " "), fontsize=7)
@@ -844,7 +847,7 @@ def summary_figure(adata, pw_df, lr_df):
         if "Responder" in inf_resp.columns:
             inf_resp = inf_resp.sort_values("Responder")
             inf_resp.plot(kind="barh", stacked=True, ax=ax,
-                         color=["#e74c3c", "#2ecc71"], width=0.5)
+                         color=["#CC3311", "#0077BB"], width=0.5)
             ax.set_xlabel("Fraction")
             ax.legend(fontsize=8)
     ax.set_title("D. Response by Immune Infiltration", fontweight="bold")
@@ -875,7 +878,7 @@ def summary_figure(adata, pw_df, lr_df):
     if lasso_path.exists():
         coefs = pd.read_csv(lasso_path)
         top = coefs[coefs["abs_coef"] > 0.01].head(10)
-        colors_c = ["#2ecc71" if c > 0 else "#e74c3c" for c in top["coefficient"]]
+        colors_c = ["#0077BB" if c > 0 else "#CC3311" for c in top["coefficient"]]
         ax.barh(range(len(top)), top["coefficient"], color=colors_c, height=0.5)
         ax.set_yticks(range(len(top)))
         ax.set_yticklabels(top["feature"].str.replace("frac_", "% "), fontsize=7)

@@ -159,7 +159,7 @@ ax.set_xlabel("UMAP 1"); ax.set_ylabel("UMAP 2")
 
 # Panel D: IO Response
 ax = axes[1, 1]
-resp_colors = {"Responder": "#2ecc71", "Non-Responder": "#e74c3c"}
+resp_colors = {"Responder": "#0077BB", "Non-Responder": "#CC3311"}
 for resp, color in resp_colors.items():
     idx = np.where(obs["response"].values == resp)[0]
     if len(idx) > 0:
@@ -174,7 +174,7 @@ if len(idx_na) > 0:
                rasterized=True)
     print(f"  D: No label -> {len(idx_na):,} cells")
 ax.legend(fontsize=8, markerscale=10)
-ax.set_title("D. IO Response (GSE206325)", fontweight="bold")
+ax.set_title("D. IO Response", fontweight="bold")
 ax.set_xlabel("UMAP 1"); ax.set_ylabel("UMAP 2")
 
 plt.suptitle(f"Integrated HCC IO Atlas \u2014 {len(obs):,} cells\n"

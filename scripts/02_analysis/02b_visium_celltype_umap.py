@@ -2,9 +2,9 @@
 """
 02b_visium_celltype_umap.py — Clustering, Cell-Type Annotation & UMAP for Visium ST
 
-1. Merge all GSE238264 sections → PCA → harmony batch-correction → UMAP
+1. Merge all GSE238264 sections → PCA → UMAP
 2. Leiden clustering at multiple resolutions
-3. Cell-type annotation via marker module scores (max-score assignment)
+3. Cell-type annotation via cell2location with atlas-derived reference signatures
 4. Figures:
    a) UMAP coloured by annotated cell type (all spots)
    b) UMAP coloured by sample / response
@@ -16,6 +16,7 @@
 import warnings
 warnings.filterwarnings("ignore")
 
+import os
 import numpy as np
 import pandas as pd
 import scanpy as sc
@@ -25,6 +26,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import seaborn as sns
+import sys; sys.path.insert(0, str(__import__('pathlib').Path(__file__).resolve().parents[2]))
+from config.publication_style import apply_style, PAL, CMAP, label_clean
+apply_style()
 from pathlib import Path
 from collections import OrderedDict
 from scipy.sparse import issparse
@@ -34,11 +38,17 @@ sc.settings.verbosity = 1
 # ── Paths ──────────────────────────────────────────────────────────────
 PROJECT = Path(__file__).resolve().parents[2]
 DATA    = PROJECT / "data" / "spatial_data" / "GSE238264_HCC_IO_Visium"
+ATLAS   = PROJECT / "data" / "processed" / "integrated_io_atlas.h5ad"
 OUT     = PROJECT / "out" / "02b_spatial_biomarkers"
 FIG     = OUT / "figures"
 TAB     = OUT / "tables"
 for d in (FIG, TAB):
     d.mkdir(parents=True, exist_ok=True)
+
+C2L_MAX_EPOCHS = int(os.environ.get("C2L_MAX_EPOCHS", "30000"))
+# Use C2L_MAX_EPOCHS=3000 in the environment for a quick CPU smoke test.
+# Production runs default to 30,000 with early stopping/checkpoint reuse.
+C2L_REFERENCE_MAX_CELLS_PER_TYPE = 4_000
 
 # ── High-contrast cell-type palette ───────────────────────────────────
 CELLTYPE_PAL = {
@@ -63,7 +73,7 @@ IMMUNE_TYPES = {"CD8+ T cell", "CD4+ T cell", "Treg", "NK cell",
 IMMUNE_SUBTYPE_PAL = {k: v for k, v in CELLTYPE_PAL.items() if k in IMMUNE_TYPES}
 
 # Response palette
-RESPONSE_PAL = {"Responder": "#2ecc71", "Non_Responder": "#e74c3c"}
+RESPONSE_PAL = {"Responder": "#0077BB", "Non_Responder": "#CC3311"}
 
 # Sample palette (high-contrast for 7)
 SAMPLE_PAL = {
@@ -117,17 +127,50 @@ SAMPLES = OrderedDict({
     "HCC7NR": "Non_Responder",
 })
 
+SYMLINK_ROOT_FALLBACKS = {
+    "/mnt/projects": "/data/projects",
+}
+
+
+def _resolve_visium_section_path(path):
+    if path.exists():
+        return path
+
+    if not path.is_symlink():
+        raise FileNotFoundError(f"Required Visium section not found: {path}")
+
+    raw_target = Path(os.readlink(path))
+    candidates = []
+    if raw_target.is_absolute():
+        candidates.append(raw_target)
+    else:
+        candidates.append((path.parent / raw_target).resolve())
+
+    target_str = str(raw_target)
+    for src_root, dst_root in SYMLINK_ROOT_FALLBACKS.items():
+        if target_str == src_root or target_str.startswith(f"{src_root}/"):
+            candidates.append(Path(target_str.replace(src_root, dst_root, 1)))
+
+    for candidate in candidates:
+        if candidate.exists():
+            if candidate != path:
+                print(f"  Resolved broken symlink via fallback: {path} -> {candidate}")
+            return candidate
+
+    candidate_text = ", ".join(str(candidate) for candidate in candidates)
+    raise FileNotFoundError(
+        f"Broken Visium symlink: {path} -> {raw_target}. Tried: {candidate_text}"
+    )
+
 
 def load_and_merge():
     """Load each section, merge into one AnnData."""
     adatas = []
     for name, resp in SAMPLES.items():
         path = DATA / f"{name}.h5ad"
-        if not path.exists():
-            print(f"  [SKIP] {path} not found")
-            continue
+        resolved = _resolve_visium_section_path(path)
         print(f"  Loading {name} ({resp})...")
-        ad = sc.read_h5ad(str(path))
+        ad = sc.read_h5ad(str(resolved))
         ad.var_names_make_unique()
         ad.obs_names = [f"{name}_{b}" for b in ad.obs_names]
         ad.obsm["spatial"] = ad.obs[["pxl_col", "pxl_row"]].values.astype(float)
@@ -170,30 +213,13 @@ def preprocess_and_embed(adata):
     adata.obsm["X_pca"] = adata_hvg.obsm["X_pca"]
     adata.uns["pca"] = adata_hvg.uns["pca"]
 
-    # Harmony batch correction across samples
-    try:
-        import harmonypy
-        print("  Running Harmony batch correction...")
-        ho = harmonypy.run_harmony(adata.obsm["X_pca"], adata.obs, "sample",
-                                   max_iter_harmony=30)
-        Z = ho.Z_corr
-        # harmonypy (PyTorch) may return a tensor; ensure numpy (n_cells × n_pcs)
-        if hasattr(Z, "cpu"):
-            Z = Z.cpu().numpy()
-        Z = np.asarray(Z, dtype=np.float32)
-        if Z.shape[0] == adata.n_obs:
-            adata.obsm["X_pca_harmony"] = Z
-        else:
-            adata.obsm["X_pca_harmony"] = Z.T
-        print(f"  Harmony shape: {adata.obsm['X_pca_harmony'].shape}")
-        use_rep = "X_pca_harmony"
-    except ImportError:
-        print("  [INFO] harmonypy not installed, using uncorrected PCA")
-        use_rep = "X_pca"
-
     # Neighbors & UMAP
-    sc.pp.neighbors(adata, n_neighbors=20, n_pcs=30, use_rep=use_rep)
+    sc.pp.neighbors(adata, n_neighbors=20, n_pcs=30, use_rep="X_pca")
     sc.tl.umap(adata, min_dist=0.3, spread=1.2)
+    adata.obsm["X_umap_expr"] = adata.obsm["X_umap"].copy()
+    adata.uns["umap_basis_notes"] = {
+        "X_umap_expr": "Expression/PCA UMAP computed before cell2location.",
+    }
     print(f"  UMAP computed ({adata.obsm['X_umap'].shape})")
 
     # Leiden at multiple resolutions
@@ -210,49 +236,219 @@ def preprocess_and_embed(adata):
 #  CELL-TYPE ANNOTATION
 # ═══════════════════════════════════════════════════════════════════════
 
+def _sanitize_celltype_name(name):
+    return (str(name)
+            .replace("+", "p")
+            .replace("/", "_")
+            .replace(" ", "_")
+            .replace("-", "_"))
+
+
+def _build_cell2location_reference():
+    """Build a compact atlas-derived reference signature matrix for cell2location."""
+    print("  Building atlas reference signatures for cell2location...")
+    ref_csv = TAB / "gse238264_cell2location_reference_signatures.csv"
+    if ref_csv.exists():
+        print(f"  [CHECKPOINT] Loading pre-computed reference: {ref_csv}")
+        reference = pd.read_csv(ref_csv, index_col=0)
+        print(f"  Reference matrix: {reference.shape[0]} genes × {reference.shape[1]} cell types")
+        return reference
+    if not ATLAS.exists():
+        raise FileNotFoundError(f"Atlas not found: {ATLAS}")
+
+    atlas = sc.read_h5ad(ATLAS, backed="r")
+    try:
+        if "cell_type" not in atlas.obs.columns:
+            raise KeyError("integrated atlas is missing 'cell_type' annotations")
+
+        obs = atlas.obs[["cell_type"]].copy()
+        obs["cell_type"] = obs["cell_type"].astype(str)
+        obs["pos"] = np.arange(len(obs))  # integer row indices for backed-mode subsetting
+        obs = obs[~obs["cell_type"].isin(["nan", "None", "Unknown", "Unassigned"])]
+
+        rng = np.random.default_rng(0)
+        selected_pos = []
+        for cell_type, group in obs.groupby("cell_type", observed=True):
+            pos = group["pos"].to_numpy()
+            if len(pos) == 0:
+                continue
+            n_keep = min(len(pos), C2L_REFERENCE_MAX_CELLS_PER_TYPE)
+            selected_pos.append(rng.choice(pos, n_keep, replace=False))
+
+        if not selected_pos:
+            raise RuntimeError("No reference cells available for cell2location")
+
+        selected_pos = np.sort(np.unique(np.concatenate(selected_pos)))
+        subset = atlas[selected_pos].to_memory()
+    finally:
+        atlas.file.close()
+
+    layer = subset.layers["counts"] if "counts" in subset.layers else subset.X
+    ref_rows = {}
+    for cell_type in sorted(subset.obs["cell_type"].astype(str).unique()):
+        mask = (subset.obs["cell_type"].astype(str) == cell_type).to_numpy()
+        if mask.sum() < 20:
+            continue
+        matrix = layer[mask]
+        mean_expr = np.asarray(matrix.mean(axis=0)).ravel()
+        ref_rows[cell_type] = mean_expr
+
+    reference = pd.DataFrame(ref_rows, index=subset.var_names)
+    reference = reference.loc[reference.sum(axis=1) > 0]
+    reference.to_csv(TAB / "gse238264_cell2location_reference_signatures.csv")
+    print(f"  Reference matrix: {reference.shape[0]} genes × {reference.shape[1]} cell types")
+    return reference
+
+
 def annotate_celltypes(adata):
-    """Score cell-type markers and assign dominant type per spot."""
-    print("\n[2] Cell-type annotation...")
-    avail = set(adata.var_names)
+    """Annotate Visium spots with cell2location using atlas-derived signatures."""
+    print("\n[2] Cell-type annotation with cell2location...")
+    try:
+        from cell2location.models import Cell2location
+    except ImportError as exc:
+        raise ImportError(
+            "cell2location is required for Visium annotation. Install it in the analysis environment first."
+        ) from exc
 
-    score_cols = []
-    for ct_name, genes in CELL_MARKERS.items():
-        present = [g for g in genes if g in avail]
-        col = f"score_{ct_name.replace(' ', '_').replace('+', 'p')}"
-        if len(present) >= 2:
-            sc.tl.score_genes(adata, present, score_name=col, use_raw=False)
-            score_cols.append((ct_name, col))
-            print(f"  {ct_name}: {len(present)}/{len(genes)} markers")
+    reference = _build_cell2location_reference()
+    shared_genes = adata.var_names.intersection(reference.index)
+    if len(shared_genes) < 500:
+        raise RuntimeError(f"Too few shared genes for cell2location: {len(shared_genes)}")
+
+    adata = adata[:, shared_genes].copy()
+    reference = reference.loc[shared_genes]
+
+    abundance_csv = TAB / "gse238264_cell2location_abundances.csv"
+    if abundance_csv.exists():
+        print(f"  [CHECKPOINT] Loading pre-computed cell2location abundance: {abundance_csv}")
+        abundance = pd.read_csv(abundance_csv, index_col=0)
+        abundance = abundance.reindex(adata.obs_names).fillna(0.0)
+        abundance_key = "checkpoint"
+    else:
+        if "counts" not in adata.layers:
+            adata.layers["counts"] = adata.X.copy()
+
+        Cell2location.setup_anndata(adata, layer="counts", batch_key="sample")
+        # Force CPU training — GPU may be occupied by other jobs (e.g. Geneformer)
+        import os as _os
+        _os.environ["CUDA_VISIBLE_DEVICES"] = ""
+        model = Cell2location(
+            adata,
+            cell_state_df=reference,
+            N_cells_per_location=30,
+            detection_alpha=20,
+        )
+        print(f"  Training cell2location for up to {C2L_MAX_EPOCHS:,} epochs (CPU, early stopping)...")
+        model.train(
+            max_epochs=C2L_MAX_EPOCHS,
+            batch_size=2048,
+            train_size=1,
+            accelerator="cpu",
+        )
+        adata = model.export_posterior(
+            adata,
+            sample_kwargs={"num_samples": 1000, "batch_size": min(2048, adata.n_obs)},
+        )
+
+        abundance_key = None
+        for candidate in ("q05_cell_abundance_w_sf", "means_cell_abundance_w_sf"):
+            if candidate in adata.obsm:
+                abundance_key = candidate
+                break
+        if abundance_key is None:
+            raise RuntimeError("cell2location posterior abundance matrix not found in adata.obsm")
+
+        abundance = adata.obsm[abundance_key]
+        if not isinstance(abundance, pd.DataFrame):
+            abundance = pd.DataFrame(abundance, index=adata.obs_names, columns=reference.columns)
+        abundance = abundance.loc[adata.obs_names]
+        abundance.columns = [str(c) for c in abundance.columns]
+        abundance.to_csv(abundance_csv)
+
+    # Normalize column names to match CELLTYPE_PAL keys.
+    # Atlas cell_type labels may differ from display names (e.g. B_cell → B cell).
+    # cell2location Export adds a prefix like "q05cell_abundance_w_sf_" — strip it first.
+    import re as _re
+    _prefix_pat = _re.compile(
+        r'^q05cell_abundance_w_sf_|^q05_cell_abundance_w_sf_'
+        r'|^means_cell_abundance_w_sf_|^means_cell_abundance_'
+    )
+    abundance.columns = [_prefix_pat.sub('', c) for c in abundance.columns]
+    _CT_RENAME = {
+        "B_cell": "B cell",
+        "CD4_T":  "CD4+ T cell",
+        "CD8_T":  "CD8+ T cell",
+        "NK":     "NK cell",
+    }
+    # Merge DC subtypes to a single "DC" column
+    _dc_cols = [c for c in abundance.columns if c in ("cDC1", "cDC2", "mregDC")]
+    if _dc_cols:
+        if "DC" not in abundance.columns:
+            abundance.insert(0, "DC", abundance[_dc_cols].sum(axis=1))
         else:
-            print(f"  [SKIP] {ct_name}: only {len(present)} markers found")
+            abundance["DC"] = abundance["DC"] + abundance[_dc_cols].sum(axis=1)
+        abundance = abundance.drop(columns=_dc_cols)
+    abundance = abundance.rename(columns={k: v for k, v in _CT_RENAME.items() if k in abundance.columns})
 
-    # Assign cell type = max score (with minimum threshold)
-    score_matrix = np.column_stack([adata.obs[col].values for _, col in score_cols])
-    ct_names = [ct for ct, _ in score_cols]
+    for cell_type in abundance.columns:
+        adata.obs[f"c2l_{_sanitize_celltype_name(cell_type)}"] = abundance[cell_type].values
 
-    max_idx = np.argmax(score_matrix, axis=1)
-    max_val = np.max(score_matrix, axis=1)
+    if "X_umap" in adata.obsm and "X_umap_expr" not in adata.obsm:
+        adata.obsm["X_umap_expr"] = adata.obsm["X_umap"].copy()
+    adata.obsm["X_cell2location"] = abundance.values.astype(np.float32)
+    sc.pp.neighbors(adata, use_rep="X_cell2location", n_neighbors=20)
+    sc.tl.umap(adata, min_dist=0.3, spread=1.15)
+    adata.obsm["X_umap_cell2location"] = adata.obsm["X_umap"].copy()
+    adata.uns.setdefault("umap_basis_notes", {})
+    adata.uns["umap_basis_notes"].update({
+        "X_umap_cell2location": "UMAP of continuous cell2location abundance vectors.",
+        "X_umap": "Alias of X_umap_cell2location for legacy plotting functions.",
+    })
 
-    # Threshold: if max score < 0.05 → Unassigned
-    labels = np.array([ct_names[i] if max_val[j] > 0.01 else "Unassigned"
-                        for j, i in enumerate(max_idx)])
-    adata.obs["celltype"] = pd.Categorical(labels,
-                                           categories=list(CELLTYPE_PAL.keys()))
+    # Use only columns present in CELLTYPE_PAL for label assignment
+    celltype_cols = [c for c in CELLTYPE_PAL if c != "Unassigned" and c in abundance.columns]
+    values = abundance[celltype_cols].to_numpy(dtype=float)
+    top_idx = np.argmax(values, axis=1)
+    top_val = values[np.arange(values.shape[0]), top_idx]
+    second_val = np.partition(values, -2, axis=1)[:, -2] if values.shape[1] > 1 else np.zeros(values.shape[0])
+    margin = top_val - second_val
+    labels = np.array(celltype_cols)[top_idx].astype(object)
+    labels[(top_val < 1.0) | (margin < 0.5)] = "Unassigned"
 
-    # Print composition
+    adata.obs["celltype"] = pd.Categorical(labels, categories=list(CELLTYPE_PAL.keys()))
+    adata.obs["celltype_visual_label"] = adata.obs["celltype"].astype(str)
+    adata.obs["celltype_confident"] = top_val >= 1.0
+    adata.obs["celltype_top_abundance"] = top_val
+    adata.obs["celltype_margin"] = margin
+    adata.uns["celltype_assignment_method"] = "cell2location_dominant_visual_label"
+    adata.uns["celltype_label_warning"] = (
+        "celltype is the dominant cell2location abundance label for visualization only; "
+        "quantitative analyses must use continuous c2l_* abundance columns."
+    )
+    adata.uns["quantitative_spatial_features"] = [
+        f"c2l_{_sanitize_celltype_name(cell_type)}" for cell_type in abundance.columns
+    ]
+    adata.uns["cell2location_params"] = {
+        "max_epochs": C2L_MAX_EPOCHS,
+        "reference_max_cells_per_type": C2L_REFERENCE_MAX_CELLS_PER_TYPE,
+        "n_cells_per_location": 30,
+        "detection_alpha": 20,
+        "abundance_key": abundance_key,
+    }
+
     counts = adata.obs["celltype"].value_counts()
     print("\n  Cell-type composition:")
     for ct, n in counts.items():
         pct = 100 * n / adata.n_obs
         print(f"    {ct:20s}: {n:6d} ({pct:5.1f}%)")
 
-    # Also score immune signatures for later
+    avail = set(adata.var_names)
     for sig_name, genes in IMMUNE_SIGS.items():
         present = [g for g in genes if g in avail]
         if len(present) >= 2:
             sc.tl.score_genes(adata, present, score_name=sig_name, use_raw=False)
 
-    return adata, score_cols
+    return adata, []
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -495,6 +691,10 @@ def plot_marker_clustered_heatmap(adata):
     valid_cts = [ct for ct in CELL_MARKERS.keys()
                  if (adata.obs["celltype"] == ct).sum() >= 5]
 
+    if not valid_cts:
+        print("  [SKIP] No cell types with ≥5 spots — clustered heatmap skipped")
+        return
+
     adata_raw = adata.raw if adata.raw is not None else adata
     mat = np.zeros((len(valid_cts), len(marker_list)))
     for i, ct in enumerate(valid_cts):
@@ -559,8 +759,16 @@ def plot_umap_immune(adata):
     adata_imm = adata[immune_mask].copy()
 
     # Re-compute neighbours and UMAP for immune subset
-    use_rep = "X_pca_harmony" if "X_pca_harmony" in adata_imm.obsm else "X_pca"
-    sc.pp.neighbors(adata_imm, n_neighbors=15, n_pcs=20, use_rep=use_rep)
+    if "X_cell2location" in adata_imm.obsm:
+        use_rep = "X_cell2location"
+    elif "X_pca" in adata_imm.obsm:
+        use_rep = "X_pca"
+    else:
+        use_rep = None
+    if use_rep is not None:
+        sc.pp.neighbors(adata_imm, n_neighbors=15, use_rep=use_rep)
+    else:
+        sc.pp.neighbors(adata_imm, n_neighbors=15)
     sc.tl.umap(adata_imm, min_dist=0.25, spread=1.0)
 
     umap = adata_imm.obsm["X_umap"]
@@ -634,53 +842,66 @@ def plot_umap_immune(adata):
 # ═══════════════════════════════════════════════════════════════════════
 
 def plot_spatial_celltypes(adata):
-    """Spatial maps coloured by annotated cell type, one per section."""
+    """Spatial maps coloured by annotated cell type, one per section.
+
+    HCC_omics reference style: dark background, bold white titles,
+    rasterized point overlay, shared legend panel.
+    """
     print("\n[3e] Spatial cell-type maps...")
 
     samples = list(SAMPLES.keys())
-    n_samples = len(samples)
-    fig, axes = plt.subplots(2, 4, figsize=(24, 11))
+    fig, axes = plt.subplots(2, 4, figsize=(24, 12),
+                              facecolor="#111111")
     axes_flat = axes.flatten()
 
     for idx, sname in enumerate(samples):
         ax = axes_flat[idx]
+        ax.set_facecolor("#1a1a1a")
         mask = adata.obs["sample"] == sname
         sub = adata[mask]
         coords = sub.obsm["spatial"]
         resp = sub.obs["response"].iloc[0]
 
-        # Plot each cell type
-        for ct in CELLTYPE_PAL.keys():
+        # Plot non-immune first (background), immune on top
+        base_order = ["Unassigned", "Hepatocyte", "Endothelial", "Fibroblast", "Tumor"]
+        top_order = ["B cell", "Macrophage", "DC", "NK cell",
+                     "CD4+ T cell", "Treg", "CD8+ T cell"]
+        for ct in base_order + top_order:
             ct_mask = sub.obs["celltype"] == ct
             if ct_mask.sum() == 0:
                 continue
             color = CELLTYPE_PAL[ct]
-            size = 3 if ct in ("Unassigned", "Hepatocyte") else 6
+            size = 3 if ct in ("Unassigned", "Hepatocyte") else 7
+            alpha = 0.55 if ct in ("Unassigned", "Hepatocyte") else 0.9
             ax.scatter(coords[ct_mask.values, 0], coords[ct_mask.values, 1],
                        c=color, s=size, edgecolors="none",
-                       rasterized=True, alpha=0.8)
+                       rasterized=True, alpha=alpha)
         ax.set_aspect("equal")
         ax.invert_yaxis()
         ax.set_xticks([]); ax.set_yticks([])
         resp_short = "R" if resp == "Responder" else "NR"
         ax.set_title(f"{sname} ({resp_short})\n{mask.sum()} spots",
-                     fontsize=10, fontweight="bold",
-                     color=RESPONSE_PAL[resp])
+                     fontsize=11, fontweight="bold",
+                     color="white")
         for spine in ax.spines.values():
             spine.set_visible(False)
 
-    # Last subplot: legend
+    # Last subplot: legend on dark background
     ax = axes_flat[-1]
+    ax.set_facecolor("#1a1a1a")
     ax.axis("off")
     for ct, color in CELLTYPE_PAL.items():
-        ax.scatter([], [], c=color, s=40, label=ct, edgecolors="none")
-    ax.legend(fontsize=9, loc="center", framealpha=0.95, markerscale=2,
-              title="Cell Type", title_fontsize=10)
+        ax.scatter([], [], c=color, s=80, label=ct, edgecolors="none")
+    leg = ax.legend(fontsize=10, loc="center", framealpha=0.0, markerscale=1.5,
+                    title="Cell Type", title_fontsize=11,
+                    labelcolor="white")
+    plt.setp(leg.get_title(), color="white", fontweight="bold")
 
     plt.suptitle("Spatial Cell-Type Annotation — GSE238264 HCC Visium",
-                 fontsize=13, fontweight="bold")
+                 fontsize=14, fontweight="bold", color="white", y=0.995)
     plt.tight_layout()
-    plt.savefig(FIG / "02b_ct_spatial_celltype_maps.png", dpi=200, bbox_inches="tight")
+    plt.savefig(FIG / "02b_ct_spatial_celltype_maps.png", dpi=250,
+                bbox_inches="tight", facecolor="#111111")
     plt.close()
     print("  Saved.")
 
@@ -748,6 +969,8 @@ def save_annotations(adata):
     print("\n[4] Saving annotation table...")
     cols = ["sample", "response", "celltype", "leiden_0_8"]
     cols += [c for c in adata.obs.columns if c.startswith("score_")]
+    cols += [c for c in adata.obs.columns if c.startswith("c2l_")]
+    cols += [c for c in ["celltype_confident", "celltype_top_abundance", "celltype_margin"] if c in adata.obs.columns]
     df = adata.obs[cols].copy()
     df.to_csv(TAB / "gse238264_celltype_annotations.csv")
     print(f"  Saved {df.shape[0]} spots × {df.shape[1]} columns")
@@ -756,6 +979,78 @@ def save_annotations(adata):
     comp = adata.obs.groupby(["sample", "response", "celltype"]).size().reset_index(name="n_spots")
     comp.to_csv(TAB / "gse238264_celltype_composition.csv", index=False)
     print(f"  Composition table: {comp.shape[0]} rows")
+
+    support = (adata.obs.assign(confident=lambda d: d["celltype"] != "Unassigned")
+               .groupby(["sample", "response"], observed=True)
+               .agg(
+                   n_spots=("celltype", "size"),
+                   confident_fraction=("confident", "mean"),
+                   dominant_celltype=("celltype", lambda x: x.value_counts().index[0]),
+                   dominant_fraction=("celltype", lambda x: x.value_counts(normalize=True).iloc[0]),
+               )
+               .reset_index())
+    support.to_csv(TAB / "gse238264_sample_annotation_support.csv", index=False)
+    print(f"  Sample support table: {support.shape[0]} rows")
+
+
+def plot_sample_annotation_support(adata):
+    """Summarize per-sample annotation support and dominant cell types."""
+    print("\n[3g] Sample-level annotation support...")
+    comp = (adata.obs.groupby(["sample", "response", "celltype"], observed=True)
+            .size()
+            .rename("n_spots")
+            .reset_index())
+    totals = comp.groupby("sample", observed=True)["n_spots"].sum().rename("total_spots")
+    comp = comp.merge(totals, on="sample", how="left")
+    comp["fraction"] = comp["n_spots"] / comp["total_spots"]
+
+    top_celltypes = (comp.groupby("celltype", observed=True)["n_spots"]
+                     .sum()
+                     .sort_values(ascending=False)
+                     .head(8)
+                     .index.tolist())
+    plot_df = comp[comp["celltype"].isin(top_celltypes)].copy()
+    sample_order = list(SAMPLES.keys())
+
+    support = pd.read_csv(TAB / "gse238264_sample_annotation_support.csv")
+
+    fig, axes = plt.subplots(1, 2, figsize=(18, 6), gridspec_kw={"width_ratios": [1.4, 1]})
+
+    ax = axes[0]
+    pivot = (plot_df.pivot_table(index="sample", columns="celltype", values="fraction", fill_value=0)
+             .reindex(sample_order)
+             .fillna(0))
+    bottom = np.zeros(len(pivot))
+    for celltype in pivot.columns:
+        ax.bar(pivot.index, pivot[celltype].values, bottom=bottom,
+               color=CELLTYPE_PAL.get(celltype, "#999999"), label=celltype,
+               edgecolor="white", linewidth=0.7)
+        bottom += pivot[celltype].values
+    ax.set_ylim(0, 1)
+    ax.set_ylabel("Fraction of spots")
+    ax.set_title("A. Per-sample cell2location annotation composition", fontweight="bold")
+    ax.tick_params(axis="x", rotation=35)
+    ax.legend(fontsize=7, loc="upper left", bbox_to_anchor=(1.02, 1.0), frameon=False)
+
+    ax = axes[1]
+    support = support.sort_values("sample")
+    colors = [RESPONSE_PAL.get(str(resp).replace("-", "_"), "#666666") for resp in support["response"]]
+    ax.bar(support["sample"], support["confident_fraction"], color=colors,
+           edgecolor="white", linewidth=0.8)
+    for idx, row in support.iterrows():
+        ax.text(idx, min(row["confident_fraction"] + 0.03, 1.02),
+                f"{row['dominant_celltype']}\n{row['dominant_fraction']:.0%}",
+                ha="center", va="bottom", fontsize=8)
+    ax.set_ylim(0, 1.08)
+    ax.set_ylabel("Confidently assigned fraction")
+    ax.set_title("B. Sample-level support and dominant cell type", fontweight="bold")
+    ax.tick_params(axis="x", rotation=35)
+
+    plt.suptitle("GSE238264 cell2location annotation support", fontsize=14, fontweight="bold", y=1.01)
+    plt.tight_layout()
+    plt.savefig(FIG / "02b_ct_sample_annotation_support.png", dpi=250, bbox_inches="tight")
+    plt.close()
+    print("  Saved.")
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -780,6 +1075,7 @@ def main():
     plot_spatial_celltypes(adata)
     plot_umap_leiden(adata)
     save_annotations(adata)
+    plot_sample_annotation_support(adata)
 
     print("\n" + "=" * 70)
     print("[DONE] All cell-type annotation & UMAP figures generated")

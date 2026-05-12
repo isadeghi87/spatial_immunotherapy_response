@@ -65,6 +65,7 @@ cohort_rows = [
     ("GSE125449", "scRNA-seq (10x)",   "Ma 2019 Cancer Cell",         8,  10_000, "treatment-naive"),
     ("GSE140228", "scRNA-seq (10x)",   "Zhang 2019 Cell",             8,  67_000, "CD45+ immune"),
     ("GSE149614", "scRNA-seq (10x)",   "Lu 2022 Nat Commun",         10,  70_000, "multi-region"),
+    ("EGAS00001007547","scRNA-seq (10x)", "Cappuyns 2023 Nat Commun",  38,  88_000, "atezo+bev (19R / 13NR) — validation"),
     ("E-MTAB-10553","scRNA-seq (10x)", "Pfister 2021 Nature",        12, 150_000, "NASH + anti-PD-1"),
     ("GSE173905", "Visium",            "Wu 2021 Sci Adv",             8,       0, "NC / ER / RS"),
     ("GSE238264", "Visium",            "Liu 2023 Cell Rep Med",       7,       0, "ICB-treated (4R / 3NR)"),

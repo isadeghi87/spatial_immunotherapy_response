@@ -16,6 +16,9 @@ import scanpy as sc
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import sys; sys.path.insert(0, str(__import__('pathlib').Path(__file__).resolve().parents[2]))
+from config.publication_style import apply_style, PAL, CMAP, label_clean
+apply_style()
 from matplotlib.colors import TwoSlopeNorm
 from pathlib import Path
 
@@ -59,7 +62,12 @@ def plot_spatial_maps(adata_path=None):
 
     # UMAP coordinates
     if "X_umap" not in adata.obsm:
-        rep = "X_pca_harmony" if "X_pca_harmony" in adata.obsm else "X_pca"
+        if "X_scVI" in adata.obsm:
+            rep = "X_scVI"
+        elif "X_pca_harmony" in adata.obsm:
+            rep = "X_pca_harmony"
+        else:
+            rep = "X_pca"
         sc.pp.neighbors(adata, use_rep=rep, n_neighbors=15)
         sc.tl.umap(adata)
 

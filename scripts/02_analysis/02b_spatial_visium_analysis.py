@@ -28,6 +28,9 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import seaborn as sns
+import sys; sys.path.insert(0, str(__import__('pathlib').Path(__file__).resolve().parents[2]))
+from config.publication_style import apply_style, PAL, CMAP, label_clean
+apply_style()
 from pathlib import Path
 from scipy.stats import mannwhitneyu, spearmanr, kruskal
 from scipy.sparse import issparse
@@ -80,13 +83,13 @@ CELL_MARKERS = {
 }
 
 # ── Palette ────────────────────────────────────────────────────────────
-RESPONSE_PAL = {"Responder": "#2ecc71", "Non_Responder": "#e74c3c"}
+RESPONSE_PAL = {"Responder": "#0077BB", "Non_Responder": "#CC3311"}
 IMMUNOTYPE_PAL = {
-    "Immune_Hot": "#e74c3c", "Immune_Excluded": "#f39c12",
+    "Immune_Hot": "#CC3311", "Immune_Excluded": "#f39c12",
     "Immune_Desert": "#3498db", "Immune_Mixed": "#95a5a6",
 }
-TISSUE_PAL = {"Normal": "#3498db", "Tumor": "#e74c3c",
-              "Primary": "#e74c3c", "Recurrence": "#9b59b6"}
+TISSUE_PAL = {"Normal": "#3498db", "Tumor": "#CC3311",
+              "Primary": "#CC3311", "Recurrence": "#9b59b6"}
 
 # ═══════════════════════════════════════════════════════════════════════
 #  HELPER FUNCTIONS
@@ -650,7 +653,7 @@ def analyse_gse281759(datasets):
             plot_df = plot_df.sample(50000, random_state=42)
 
         sns.boxplot(data=plot_df, x="Signature", y="Score", hue="Group",
-                    palette={"Primary": "#e74c3c", "Recurrence": "#9b59b6"},
+                    palette={"Primary": "#CC3311", "Recurrence": "#9b59b6"},
                     ax=ax, fliersize=0, linewidth=0.8)
         ax.set_title("GSE281759: IO Signatures — Primary vs Recurrence", fontweight="bold")
         ax.tick_params(axis="x", rotation=45, labelsize=7)
@@ -745,7 +748,7 @@ def cross_dataset_summary(gse238_combined, gse281_combined):
         "GSE281759\n(Multi-Region)": gse281_combined.n_obs,
     }
     bars = ax.bar(datasets_info.keys(), datasets_info.values(),
-                  color=["#2ecc71", "#3498db"], width=0.4, edgecolor="black", linewidth=0.5)
+                  color=["#0077BB", "#3498db"], width=0.4, edgecolor="black", linewidth=0.5)
     for bar, val in zip(bars, datasets_info.values()):
         ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 100,
                 f"{val:,}", ha="center", fontweight="bold")
@@ -757,7 +760,7 @@ def cross_dataset_summary(gse238_combined, gse281_combined):
     eff_file = TAB / "gse238264_RvsNR_signature_stats.csv"
     if eff_file.exists():
         eff_df = pd.read_csv(eff_file).sort_values("effect_size")
-        colors = ["#2ecc71" if x > 0 else "#e74c3c" for x in eff_df["effect_size"]]
+        colors = ["#0077BB" if x > 0 else "#CC3311" for x in eff_df["effect_size"]]
         ax.barh(eff_df["signature"].str.replace("_", " "), eff_df["effect_size"],
                 color=colors, edgecolor="black", linewidth=0.3, height=0.5)
         ax.axvline(0, color="black", linewidth=0.5)
@@ -782,7 +785,7 @@ def cross_dataset_summary(gse238_combined, gse281_combined):
     tn_file = TAB / "gse281759_tumor_vs_normal_stats.csv"
     if tn_file.exists():
         tn_df = pd.read_csv(tn_file).sort_values("effect")
-        colors = ["#e74c3c" if x > 0 else "#3498db" for x in tn_df["effect"]]
+        colors = ["#CC3311" if x > 0 else "#3498db" for x in tn_df["effect"]]
         ax.barh(tn_df["signature"].str.replace("_", " "), tn_df["effect"],
                 color=colors, edgecolor="black", linewidth=0.3, height=0.5)
         ax.axvline(0, color="black", linewidth=0.5)

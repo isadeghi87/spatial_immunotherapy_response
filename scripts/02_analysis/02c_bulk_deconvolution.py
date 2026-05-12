@@ -210,36 +210,6 @@ def plot_deconvolution_results(deconv_df, sample_source="IMbrave150"):
         plt.savefig(FIG / f"02c_fraction_correlations_{sample_source}.{ext}", dpi=200, bbox_inches="tight")
     plt.close()
 
-    # Fig 4: PCA/UMAP of deconvolved sample fractions
-    print(f"  Generating sample UMAP based on fractions for {sample_source}...")
-    import anndata as ad
-    import scanpy as sc
-    adata_bulk = ad.AnnData(X=deconv_df[cell_type_cols].values, obs=pd.DataFrame(index=deconv_df.index))
-    if "inferred_immunotype" in deconv_df.columns:
-        adata_bulk.obs["inferred_immunotype"] = deconv_df["inferred_immunotype"].values
-        # Ensure it is categorical for plotting styling
-        adata_bulk.obs["inferred_immunotype"] = adata_bulk.obs["inferred_immunotype"].astype("category")
-    
-    # Needs at least 3 samples to do PCA easily
-    if len(adata_bulk) >= 4:
-        sc.pp.pca(adata_bulk, n_comps=min(15, len(adata_bulk)-1))
-        sc.pp.neighbors(adata_bulk, use_rep="X_pca", n_neighbors=min(15, len(adata_bulk)-1))
-        sc.tl.umap(adata_bulk)
-        
-        fig, axes = plt.subplots(1, 2, figsize=(10, 5))
-        if "inferred_immunotype" in adata_bulk.obs.columns:
-            sc.pl.umap(adata_bulk, color="inferred_immunotype", ax=axes[0], show=False, title=f"UMAP: Immunotype")
-        else:
-            axes[0].set_title("UMAP Blank")
-            
-        sc.pl.pca(adata_bulk, color="inferred_immunotype" if "inferred_immunotype" in adata_bulk.obs.columns else None, ax=axes[1], show=False, title=f"PCA by Immunotype")
-        
-        plt.suptitle(f"Sample Embedding — {sample_source}", fontweight="bold", fontsize=13)
-        plt.tight_layout()
-        for ext in ["png", "pdf"]:
-            plt.savefig(FIG / f"02c_sample_embedding_{sample_source}.{ext}", dpi=200, bbox_inches="tight")
-        plt.close()
-
 
 def load_trial_bulk(trial_name):
     """Load bulk RNA-seq count matrix for a trial."""
@@ -313,67 +283,6 @@ def main():
         print(f"\n  CIBERSORTx reference matrix saved at:")
         print(f"    {TAB / 'cibersortx_hcc_reference.tsv'}")
         print(f"  Upload this to https://cibersortx.stanford.edu/ for web-based deconvolution.")
-
-        # ── Visualize reference matrix (always generated) ──────────
-        print("\n[FIGS] Generating reference matrix figures...")
-
-        # Fig 1: Mean expression heatmap of top marker genes per cell type
-        fig, ax = plt.subplots(figsize=(max(12, ref_df.shape[1]*0.3), 10))
-        # Select top 5 genes per cell type by expression
-        top_genes = []
-        for ct in ref_df.columns:
-            ct_top = ref_df[ct].nlargest(5).index.tolist()
-            top_genes.extend(ct_top)
-        top_genes = list(dict.fromkeys(top_genes))  # unique, preserve order
-        if len(top_genes) > 100:
-            top_genes = top_genes[:100]
-        plot_df = ref_df.loc[top_genes]
-        # Z-score per gene for visualization
-        plot_z = plot_df.sub(plot_df.mean(axis=1), axis=0).div(plot_df.std(axis=1) + 1e-10, axis=0)
-        sns.heatmap(plot_z, cmap="RdBu_r", center=0, ax=ax, linewidths=0.3,
-                    yticklabels=True, xticklabels=True,
-                    cbar_kws={"label": "Z-score"})
-        ax.set_title("CIBERSORTx Reference: Top Marker Genes per Cell Type", fontweight="bold")
-        ax.tick_params(axis="x", rotation=45, labelsize=7)
-        ax.tick_params(axis="y", labelsize=6)
-        plt.tight_layout()
-        for ext in ["png", "pdf"]:
-            plt.savefig(FIG / f"02c_reference_heatmap.{ext}", dpi=200, bbox_inches="tight")
-        plt.close()
-
-        # Fig 2: Cell type correlation from reference
-        fig, ax = plt.subplots(figsize=(max(10, ref_df.shape[1]*0.2), max(9, ref_df.shape[1]*0.18)))
-        corr = ref_df.corr(method="spearman")
-        # Cluster
-        from scipy.cluster.hierarchy import linkage, leaves_list
-        Z = linkage(1 - corr.values, method="ward")
-        order = leaves_list(Z)
-        corr_ordered = corr.iloc[order, order]
-        sns.heatmap(corr_ordered, cmap="RdBu_r", center=0, ax=ax, linewidths=0.3,
-                    xticklabels=True, yticklabels=True,
-                    cbar_kws={"label": "Spearman ρ"})
-        ax.set_title("Cell Type Reference Correlation", fontweight="bold")
-        ax.tick_params(axis="x", rotation=45, labelsize=7)
-        ax.tick_params(axis="y", labelsize=7)
-        plt.tight_layout()
-        for ext in ["png", "pdf"]:
-            plt.savefig(FIG / f"02c_reference_correlation.{ext}", dpi=200, bbox_inches="tight")
-        plt.close()
-
-        # Fig 3: Barplot of number of cells per cell type used in reference
-        if atlas_path.exists():
-            ct_counts = adata.obs["cell_type"].value_counts()
-            ct_in_ref = ct_counts[ct_counts.index.isin(ref_df.columns)].sort_values(ascending=True)
-            fig, ax = plt.subplots(figsize=(8, max(6, len(ct_in_ref)*0.25)))
-            ax.barh(range(len(ct_in_ref)), ct_in_ref.values, color="#3498db", height=0.5)
-            ax.set_yticks(range(len(ct_in_ref)))
-            ax.set_yticklabels(ct_in_ref.index, fontsize=7)
-            ax.set_xlabel("Number of Cells")
-            ax.set_title("Cells per Cell Type in Reference Matrix", fontweight="bold")
-            plt.tight_layout()
-            for ext in ["png", "pdf"]:
-                plt.savefig(FIG / f"02c_reference_cellcounts.{ext}", dpi=200, bbox_inches="tight")
-            plt.close()
 
     print(f"\n{'='*70}")
     print("[DONE] Bulk Deconvolution Pipeline")

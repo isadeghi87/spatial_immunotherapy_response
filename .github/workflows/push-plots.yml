@@ -1,0 +1,75 @@
+name: Push PNG Plots to GitHub
+
+# ============================================================================
+# Collects all PNG files under out/ on the self-hosted HPC runner and
+# commits + pushes them to this repository.
+#
+# Prerequisites:
+#   - A GitHub Actions self-hosted runner must be installed and registered
+#     on the HPC node where the project lives (runs-on: self-hosted).
+#   - The runner's working directory must have the repo checked out at the
+#     path configured during runner registration.
+#   - Workflow permissions: Settings → Actions → General →
+#     "Read and write permissions" must be enabled so the GITHUB_TOKEN
+#     can push commits.
+# ============================================================================
+
+on:
+  workflow_dispatch:   # trigger manually from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  push-plots:
+    name: Commit and push PNG plots
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Fetch all history so we can push back cleanly
+          fetch-depth: 0
+
+      - name: Find PNG files in out/
+        id: find_pngs
+        run: |
+          set -euo pipefail
+          COUNT=$(find out/ -name '*.png' 2>/dev/null | wc -l | tr -d ' ')
+          echo "Found ${COUNT} PNG file(s) under out/"
+          echo "count=${COUNT}" >> "${GITHUB_OUTPUT}"
+
+      - name: Stage PNG files
+        if: steps.find_pngs.outputs.count != '0'
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Force-add so .gitignore negation rules are respected
+          git add --force $(find out/ -name '*.png')
+          echo "Staged files:"
+          git status --short
+
+      - name: Commit and push
+        if: steps.find_pngs.outputs.count != '0'
+        run: |
+          set -euo pipefail
+          if git diff --cached --quiet; then
+            echo "No changes to commit — all PNGs are already up to date."
+          else
+            TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+            git commit -m "plots: update PNG outputs [${TIMESTAMP}] [skip ci]"
+            git push origin HEAD
+            echo "Pushed $(git diff HEAD~1 --name-only | grep '\.png$' | wc -l) PNG file(s)."
+          fi
+
+      - name: Summary
+        run: |
+          echo "## PNG Push Summary" >> "${GITHUB_STEP_SUMMARY}"
+          echo "" >> "${GITHUB_STEP_SUMMARY}"
+          echo "| Field | Value |" >> "${GITHUB_STEP_SUMMARY}"
+          echo "|---|---|" >> "${GITHUB_STEP_SUMMARY}"
+          echo "| PNGs found | ${{ steps.find_pngs.outputs.count }} |" >> "${GITHUB_STEP_SUMMARY}"
+          echo "| Branch | \`${GITHUB_REF_NAME}\` |" >> "${GITHUB_STEP_SUMMARY}"
+          echo "| Triggered by | @${{ github.actor }} |" >> "${GITHUB_STEP_SUMMARY}"

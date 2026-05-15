@@ -1,6 +1,10 @@
 # Data (large files)
 data/
 out/
+# Allow PNG plots generated in out/ to be tracked
+!out/
+!out/**/
+!out/**/*.png
 
 # Python
 __pycache__/

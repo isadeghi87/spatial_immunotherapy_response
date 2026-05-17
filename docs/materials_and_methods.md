@@ -72,5 +72,203 @@ Patient-level two-sided Mann–Whitney U + BH for all R-vs-NR group comparisons 
 ## 17. Software and environment manifest
 Python 3.12.7, Scanpy 1.11.5, anndata 0.10.9, scikit-learn 1.7.2, SciPy 1.16.2, NumPy 2.1.3, pandas 2.3.1, matplotlib 3.10.1, seaborn 0.13.2, harmonypy 0.2.5, InferCNV 1.22 (R), Squidpy 1.6.4, lifelines 0.30.0, statsmodels 0.14.4, scvi-tools 1.2.1 (optional), gseapy 1.1.5 (optional; curated Hallmark fallback), WeasyPrint 68.1, Pandoc 3.8.2.1. Released as Supplementary Table S14.
 
+## 18. Validation & QC scripts
+
+The following scripts and outputs underwrite every numerical claim in this
+manuscript; each is reproducible from the committed code under a SLURM-managed
+conda environment.
+
+- `scripts/01_preprocessing/01c_batch_effect_diagnostics.py` — ASW / iLISI /
+  cLISI / kBET for PCA vs Harmony (Supplementary Table S20, Supplementary Fig.
+  S13).
+- `scripts/02_analysis/02g_infercnv.py` and the spatial extension
+  `02g_infercnv_spatial.py` — per-sample InferCNV with the patient-preserving
+  sub-sampling and `X_cnv` dumps used in §2.5 and §3.3.
+- `scripts/05_multilayer/05a_multilayer_features.py` — CNV summaries from the
+  CNV atlas and L2–L5 features from the full atlas, discovery-only.
+- `scripts/05_multilayer/05b_nmf_programs.py` — discovery-only NMF fitting with
+  projection onto the Cappuyns validation cohort and Visium spots.
+- `scripts/05_multilayer/05c_multilayer_predictor.py`,
+  `05d_balanced_predictor.py` — balanced top-3-per-layer LOOCV with SHAP
+  attribution.
+- `scripts/05_multilayer/05f_revision_analyses.py` — the per-layer ROC-AUC /
+  PR-AUC / balanced-accuracy table, 2,000-iteration patient-bootstrap CIs,
+  1,000-iteration label-shuffle permutation null, leave-one-layer drops, and the
+  L3-noTech sensitivity reported in Table 3 and Fig. 6a.
+- `scripts/05_multilayer/05g_cnv_gene_pathway_trajectory.py` — per-bin Mann–
+  Whitney + BH, chromosome-arm aggregation, gene mapping and Hallmark Fisher
+  enrichment (Supplementary Tables S17–S19, Supplementary Fig. S12).
+- `scripts/03_validation/03c_cappuyns_validation.py` — locked-feature held-out
+  validation on the 32-patient Cappuyns atezo+bev cohort (Extended Data Fig. 5).
+- `scripts/06_figures/06_compile_extended_data.py` — composite assembly of the
+  Extended Data and Supplementary figures, including
+  `ExtendedData_Fig5_cappuyns_validation` and the updated panel
+  `Fig6A_balanced_layer_metrics`.
+
+## 19. Pre-registered limitations
+At the time of analysis we recorded five limitations explicitly:
+- **n = 24 discovery patients** with class imbalance 7 R / 17 NR — every AUC is
+  reported with its bootstrap CI and permutation null.
+- **Regimen heterogeneity** — discovery is anti-PD-1 monotherapy and the
+  external Cappuyns cohort is atezo+bev; negative L3 transfer may reflect
+  treatment context rather than measurement error.
+- **Pseudoreplication risk** — every comparison uses patient-level units and we
+  explicitly do not report cell-level pseudotime *p*-values (§2.12, §3.7).
+- **InferCNV is an expression-based proxy** — paired DNA-seq was not available
+  for the discovery cohort; the CNV chromosome / pathway analyses in §3.3 are
+  reported as expression-derived genomic-instability surrogates.
+- **IMbrave150 transfer is single-feature** — the full 15-feature ensemble
+  cannot be reconstructed from intratumoural CD8 IHC; the trial analysis
+  validates the dominant L3 signal only.
+
+---
+
 ## References
-Full reference list in [`docs/manuscript.md`](manuscript.md) §6.
+
+This list mirrors the verified manuscript bibliography (§6 of `manuscript.md`).
+Three citations that could not be cross-checked against an authoritative
+bibliographic record were withdrawn during revision and are *not* reproduced
+here (formerly refs 19, 27 and 34 of the manuscript).
+
+1. Sung H, Ferlay J, Siegel RL, Laversanne M, Soerjomataram I, Jemal A, Bray F.
+   Global Cancer Statistics 2020: GLOBOCAN estimates of incidence and mortality
+   worldwide for 36 cancers in 185 countries. *CA Cancer J Clin*
+   2021;71:209–249.
+2. Llovet JM, Kelley RK, Villanueva A, Singal AG, Pikarsky E, Roayaie S, et al.
+   Hepatocellular carcinoma. *Nat Rev Dis Primers* 2021;7:6.
+3. Llovet JM, Ricci S, Mazzaferro V, Hilgard P, Gane E, Blanc JF, et al.
+   Sorafenib in advanced hepatocellular carcinoma. *N Engl J Med*
+   2008;359:378–390.
+4. Finn RS, Qin S, Ikeda M, Galle PR, Ducreux M, Kim TY, et al. Atezolizumab
+   plus Bevacizumab in Unresectable Hepatocellular Carcinoma (IMbrave150).
+   *N Engl J Med* 2020;382:1894–1905. Per-patient biomarker source: Finn RS et
+   al., *Nat Med* 2022 supplementary update (MOESM4).
+5. Abou-Alfa GK, Lau G, Kudo M, Chan SL, Kelley RK, Furuse J, et al.
+   Tremelimumab plus Durvalumab in Unresectable Hepatocellular Carcinoma
+   (HIMALAYA). *NEJM Evid* 2022;1:EVIDoa2100070.
+6. Yau T, Park JW, Finn RS, Cheng AL, Mathurin P, Edeline J, et al. Nivolumab
+   versus sorafenib in advanced hepatocellular carcinoma (CheckMate-459): a
+   randomised, multicentre, open-label, phase 3 trial. *Lancet Oncol*
+   2022;23:77–90.
+7. Sia D, Jiao Y, Martinez-Quetglas I, Kuchuk O, Villacorta-Martin C, Castro de
+   Moura M, et al. Identification of an immune-specific class of hepatocellular
+   carcinoma based on molecular features. *Gastroenterology*
+   2017;153:812–826.
+8. Montironi C, Castet F, Haber PK, Pinyol R, Torres-Martin M, Torrens L, et
+   al. Inflamed and non-inflamed classes of HCC: a revised immunogenomic
+   classification. *Gut* 2023;72:129–140.
+9. Zheng C, Zheng L, Yoo JK, Guo H, Zhang Y, Guo X, et al. Landscape of
+   infiltrating T cells in liver cancer revealed by single-cell sequencing.
+   *Cell* 2017;169:1342–1356.e16.
+10. Zhang Q, He Y, Luo N, Patel SJ, Han Y, Gao R, et al. Landscape and
+    dynamics of single immune cells in hepatocellular carcinoma (GSE140228).
+    *Cell* 2019;179:829–845.e20.
+11. Ma L, Hernandez MO, Zhao Y, Mehta M, Tran B, Kelly M, et al. Tumor cell
+    biodiversity drives microenvironmental reprogramming in liver cancer
+    (GSE125449). *Cancer Cell* 2019;36:418–430.e6.
+12. Maier B, Leader AM, Chen ST, Tung N, Chang C, LeBerichel J, et al. A
+    conserved dendritic-cell regulatory program limits antitumour immunity.
+    *Nature* 2020;580:257–262.
+13. Cabrita R, Lauss M, Sanna A, Donia M, Larsen MS, Mitra S, et al. Tertiary
+    lymphoid structures improve immunotherapy and survival in melanoma.
+    *Nature* 2020;577:561–565.
+14. Helmink BA, Reddy SM, Gao J, Zhang S, Basar R, Thakur R, et al. B cells
+    and tertiary lymphoid structures promote immunotherapy response. *Nature*
+    2020;577:549–555.
+15. Ruiz de Galarreta M, Bresnahan E, Molina-Sánchez P, Lindblad KE, Maier B,
+    Sia D, et al. β-catenin activation promotes immune escape and resistance
+    to anti-PD-1 therapy in hepatocellular carcinoma. *Cancer Discov*
+    2019;9:1124–1141.
+16. Pfister D, Núñez NG, Pinyol R, Govaere O, Pinter M, Szydlowska M, et al.
+    NASH limits anti-tumour surveillance in immunotherapy-treated HCC.
+    *Nature* 2021;592:450–456.
+17. McGranahan N, Rosenthal R, Hiley CT, Rowan AJ, Watkins TBK, Wilson GA, et
+    al. Allele-specific HLA loss and immune escape in lung cancer evolution.
+    *Cell* 2017;171:1259–1271.e11.
+18. Bakhoum SF, Ngo B, Laughney AM, Cavallo JA, Murphy CJ, Ly P, et al.
+    Chromosomal instability drives metastasis through a cytosolic DNA
+    response. *Nature* 2018;553:467–472.
+21. Wu R, Guo W, Qiu X, Wang S, Sui C, Lian Q, et al. Comprehensive analysis
+    of spatial architecture in primary liver cancer (GSE173905).
+    *Sci Adv* 2021;7:eabg3750.
+22. Liu Y, Xun Z, Ma K, Liang S, Li X, Zhou S, et al. Spatial transcriptomics
+    delineates the tumor–immune interface of ICB-treated HCC (GSE238264).
+    *Cell Rep Med* 2023;4:101311.
+23. Korsunsky I, Millard N, Fan J, Slowikowski K, Zhang F, Wei K, et al. Fast,
+    sensitive and accurate integration of single-cell data with Harmony.
+    *Nat Methods* 2019;16:1289–1296.
+24. Patel AP, Tirosh I, Trombetta JJ, Shalek AK, Gillespie SM, Wakimoto H, et
+    al. Single-cell RNA-seq highlights intratumoral heterogeneity in primary
+    glioblastoma — basis of the InferCNV expression-CNV approach. *Science*
+    2014;344:1396–1401.
+25. Aibar S, González-Blas CB, Moerman T, Huynh-Thu VA, Imrichova H, Hulselmans
+    G, et al. SCENIC: single-cell regulatory network inference and clustering.
+    *Nat Methods* 2017;14:1083–1086.
+26. Magen A, Hamon P, Fiaschi N, Soong BY, Park MD, Mattiuz R, et al.
+    Intratumoral dendritic cell–CD4⁺ T-helper cell niches enable CD8⁺ T-cell
+    differentiation following PD-1 blockade in hepatocellular carcinoma
+    (GSE206325). *Nat Med* 2023;29:1389–1399.
+28. Lu Y, Yang A, Quan C, Pan Y, Zhang H, Li Y, et al. A single-cell atlas of
+    the multicellular ecosystem of primary and metastatic hepatocellular
+    carcinoma (GSE149614). *Nat Commun* 2022;13:4594.
+29. Wolf FA, Angerer P, Theis FJ. SCANPY: large-scale single-cell gene
+    expression data analysis. *Genome Biol* 2018;19:15.
+30. McInnes L, Healy J, Melville J. UMAP: Uniform Manifold Approximation and
+    Projection for Dimension Reduction. *arXiv* 2018;1802.03426.
+31. Traag VA, Waltman L, van Eck NJ. From Louvain to Leiden: guaranteeing
+    well-connected communities. *Sci Rep* 2019;9:5233.
+32. Mariathasan S, Turley SJ, Nickles D, Castiglioni A, Yuen K, Wang Y, et al.
+    TGFβ attenuates tumour response to PD-L1 blockade by contributing to
+    exclusion of T cells. *Nature* 2018;554:544–548.
+33. Benjamini Y, Hochberg Y. Controlling the false discovery rate: a practical
+    and powerful approach to multiple testing. *J R Stat Soc B*
+    1995;57:289–300.
+35. Davidson-Pilon C. lifelines: survival analysis in Python. *J Open Source
+    Softw* 2019;4:1317.
+36. Li H, van der Leun AM, Yofe I, Lubling Y, Gelbard-Solodkin D, van Akkooi
+    ACJ, et al. Dysfunctional CD8 T cells form a proliferative, dynamically
+    regulated compartment within human melanoma. *Cell* 2019;176:775–789.e18.
+37. Davoli T, Uno H, Wooten EC, Elledge SJ. Tumor aneuploidy correlates with
+    markers of immune evasion and reduced response to immunotherapy.
+    *Science* 2017;355:eaaf8399.
+38. Dangaj D, Bruand M, Grimm AJ, Ronet C, Barras D, Duttagupta PA, et al.
+    Cooperation between constitutive and inducible chemokines enables T-cell
+    engraftment and immunotherapy in solid tumors. *Cancer Cell*
+    2019;35:885–900.e10.
+39. Cappuyns S, Philips G, Xie T, Verhulst S, Cuypers M, Lazzaro D, et al.
+    Optimal sequencing and single-cell transcriptomic analysis of the
+    hepatocellular carcinoma tumour microenvironment during systemic
+    treatment. *Nat Commun* 2023;14:8032.
+40. Stuart T, Butler A, Hoffman P, Hafemeister C, Papalexi E, Mauck WM, et al.
+    Comprehensive integration of single-cell data (Seurat v3 HVG selection).
+    *Cell* 2019;177:1888–1902.e21.
+41. Wolock SL, Lopez R, Klein AM. Scrublet: computational identification of
+    cell doublets in single-cell transcriptomic data. *Cell Syst*
+    2019;8:281–291.e9.
+42. Lopez R, Regier J, Cole MB, Jordan MI, Yosef N. Deep generative modeling
+    for single-cell transcriptomics (scVI). *Nat Methods* 2018;15:1053–1058.
+43. Palla G, Spitzer H, Klein M, Fischer D, Schaar AC, Kuemmerle LB, et al.
+    Squidpy: a scalable framework for spatial omics analysis. *Nat Methods*
+    2022;19:171–178.
+44. Kleshchevnikov V, Shmatko A, Dann E, Aivazidis A, King HW, Li T, et al.
+    Cell2location maps fine-grained cell types in spatial transcriptomics.
+    *Nat Biotechnol* 2022;40:661–671.
+45. Biancalani T, Scalia G, Buffoni L, Avasthi R, Lu Z, Sanger A, et al. Deep
+    learning and alignment of spatially resolved single-cell transcriptomes
+    with Tangram. *Nat Methods* 2021;18:1352–1362.
+46. Efremova M, Vento-Tormo M, Teichmann SA, Vento-Tormo R. CellPhoneDB:
+    inferring cell–cell communication from combined expression of multi-subunit
+    ligand–receptor complexes. *Nat Protoc* 2020;15:1484–1506.
+47. Dimitrov D, Türei D, Garrido-Rodriguez M, Burmedi PL, Nagai JS, Boys C, et
+    al. Comparison of methods and resources for cell–cell communication
+    inference from single-cell RNA-Seq data (LIANA). *Nat Commun*
+    2022;13:3224.
+48. Theodoris CV, Xiao L, Chopra A, Chaffin MD, Al Sayed ZR, Hill MC, et al.
+    Transfer learning enables predictions in network biology (Geneformer).
+    *Nature* 2023;618:616–624.
+49. Pedregosa F, Varoquaux G, Gramfort A, Michel V, Thirion B, Grisel O, et al.
+    Scikit-learn: machine learning in Python. *J Mach Learn Res*
+    2011;12:2825–2830.
+50. Lundberg SM, Lee SI. A unified approach to interpreting model predictions
+    (SHAP). *Adv Neural Inf Process Syst* 2017;30:4765–4774.
+

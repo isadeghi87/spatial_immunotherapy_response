@@ -6,6 +6,7 @@ out/
 __pycache__/
 *.pyc
 *.pyo
+envs/
 *.egg-info/
 dist/
 build/
@@ -49,3 +50,4 @@ logs/
 *.ndpi
 *.zarr/
 *.parquet
+out/02b_spatial_biomarkers/figures_interpretation.docx

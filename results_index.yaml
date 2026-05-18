@@ -1,0 +1,2292 @@
+# results_index.yaml — global analytical contract
+# Governed by analysis_standards.md (reproducibility, QC, claim control).
+# All numeric values sourced from tables under out/**/tables/. Do not edit manually
+# without updating the underlying table.
+#
+# Schema (per entry):
+#   result_id, question, modality, comparison, inputs, sample_unit,
+#   statistical_method, covariates, multiple_testing, main_outputs,
+#   qc_status, effect_size, significance, interpretation_status,
+#   strength_class, manuscript_priority, figure_candidate, caveats.
+# strength_class ∈ {strong, supported_limited, exploratory, null, inconclusive, likely_artifact}
+
+schema_version: "1.0"
+project: spatial_immunotherapy_response
+last_updated: 2026-05-17
+
+results:
+
+  # ==== L1 TUMOUR-INTRINSIC / CNV ====
+  - result_id: R_L1_cnv_clone_diversity
+    question: Does intra-tumour CNV clone diversity differ between Responders and Non-Responders?
+    modality: scRNA-seq (CNV atlas, ~48k cells)
+    comparison: R (n=7) vs NR (n=17), GSE206325 discovery cohort
+    inputs:
+      - data/processed/integrated_io_atlas_cnv.h5ad
+    sample_unit: patient
+    statistical_method: Mann-Whitney U (two-sided)
+    covariates: none
+    multiple_testing: none applied across the 3 CNV metrics (see caveat)
+    main_outputs:
+      - out/05_multilayer/tables/cnv_response_stats.csv
+      - out/05_multilayer/figures/05a_cnv_RvsNR.png
+    qc_status: passed (patient-preserving CNV subsample; reference = non-tumour immune/stromal)
+    effect_size: "Cliff's delta = -0.47 (NR > R)"
+    significance: "U=42, p=0.288"
+    interpretation_status: supported
+    strength_class: exploratory
+    active_reframe_version: "2026-04-21"
+    manuscript_priority: main
+    figure_candidate: Figure2
+    caveats:
+      - small cohort (n=24)
+      - BH across {mean, sd, clone_diversity} not applied; with m=3 correction p_BH ≈ 0.079
+      - CNV calling from expression (InferCNV) — not DNA-confirmed
+
+  - result_id: R_L1_cnv_score_sd
+    question: Does CNV-score standard deviation differ between R and NR?
+    modality: scRNA-seq (CNV)
+    comparison: R vs NR, GSE206325
+    inputs: [data/processed/integrated_io_atlas_cnv.h5ad]
+    sample_unit: patient
+    statistical_method: Mann-Whitney U
+    covariates: none
+    multiple_testing: none
+    main_outputs: [out/05_multilayer/tables/cnv_response_stats.csv]
+    qc_status: passed
+    effect_size: "Cliff's delta = -0.48"
+    significance: "U=43, p=0.318"
+    interpretation_status: null
+    strength_class: exploratory
+    active_reframe_version: "2026-04-21"
+    manuscript_priority: supplement
+    figure_candidate: null
+    caveats: [borderline significance, correlated with clone_diversity]
+
+  - result_id: R_L1_cnv_bins_responder_gained
+    question: Which chromosomal bins are differentially gained in R vs NR?
+    modality: scRNA-seq (CNV)
+    comparison: bin-level R vs NR, GSE206325
+    inputs: [data/processed/integrated_io_atlas_cnv.h5ad]
+    sample_unit: patient-bin
+    statistical_method: Mann-Whitney U per bin
+    covariates: none
+    multiple_testing: Benjamini-Hochberg across all bins
+    main_outputs:
+      - out/05_multilayer/tables/cnv_bin_response_stats.csv
+      - out/05_multilayer/tables/cnv_chromosome_arm_stats.csv
+      - out/05_multilayer/figures/05g_cnv_volcano_bins.png
+    qc_status: passed
+    effect_size: "top bins delta up to +0.0016 (responder-gained on chr5 only)"
+    significance: "chr5: 8.3% bins BH<0.10, min_BH=0.026; 0 bins BH<0.10 on any other chromosome"
+    interpretation_status: supported
+    strength_class: exploratory
+    active_reframe_version: "2026-04-21"
+    manuscript_priority: main
+    figure_candidate: Figure2
+    caveats: [bin-level multiple-testing still wide; n=24 limits resolution]
+
+  - result_id: R_L1_cnv_pathway_IFNG
+    question: Are responder-gained CNV bins enriched for IFN-gamma or TNF-alpha/NF-kB pathways?
+    modality: gene-pathway (MSigDB Hallmark)
+    comparison: genes_gained_in_R vs genes_lost_in_R
+    inputs: [out/05_multilayer/tables/cnv_gene_response_ranked.csv]
+    sample_unit: gene
+    statistical_method: Fisher exact (hypergeometric overlap)
+    covariates: none
+    multiple_testing: BH within Hallmark sets
+    main_outputs:
+      - out/05_multilayer/tables/cnv_pathway_enrichment.csv
+      - out/05_multilayer/figures/05g_cnv_pathway_enrichment.png
+    qc_status: passed
+    effect_size: "HALLMARK_IFN_GAMMA_RESPONSE OR=18.4 (GBP1 only; 1/10 overlap)"
+    significance: "p=0.128; BH=0.128 (not significant)"
+    interpretation_status: supported
+    strength_class: exploratory
+    active_reframe_version: "2026-04-21"
+    manuscript_priority: main
+    figure_candidate: Figure2
+    caveats: [small overlap counts (2/10); directional TNFA/NFkB split not significant]
+
+  # ==== L2 REGULON ====
+  - result_id: R_L2_regulon_layer_auc
+    question: Do TF regulon activities discriminate R from NR?
+    modality: scRNA-seq (regulon/AUCell)
+    comparison: R vs NR, discovery LOOCV
+    inputs: [out/05_multilayer/tables/patient_multilayer_features.csv]
+    sample_unit: patient
+    statistical_method: L2 logistic regression, LOOCV, top-3 features
+    covariates: none
+    multiple_testing: permutation null (1000)
+    main_outputs: [out/05_multilayer/tables/revision_layer_metrics.csv]
+    qc_status: passed
+    effect_size: "ROC-AUC = 0.55"
+    significance: "indistinguishable from null"
+    interpretation_status: null_result
+    strength_class: null
+    active_reframe_version: "2026-04-21"
+    manuscript_priority: supplement
+    figure_candidate: null
+    caveats: [near-chance performance in discovery]
+
+  # ==== L3 COMPOSITION ====
+  - result_id: R_L3_composition_discovery
+    question: Does cell-type composition predict response in the discovery cohort?
+    modality: scRNA-seq composition
+    comparison: R vs NR, LOOCV
+    inputs: [out/05_multilayer/tables/patient_multilayer_features.csv]
+    sample_unit: patient (n=24)
+    statistical_method: L2 logistic regression, LOOCV, top-3 features, balanced classes
+    covariates: none
+    multiple_testing: 1000 permutation null
+    main_outputs:
+      - out/05_multilayer/tables/revision_layer_metrics.csv
+      - out/05_multilayer/tables/revision_permutation_null.csv
+      - out/05_multilayer/figures/05c_roc_by_layer.png
+    qc_status: passed
+    effect_size: "ROC-AUC = 0.983 (95% CI 0.849-1.00); PR-AUC = 0.928; BA = 0.828"
+    significance: "permutation p = 0.014"
+    interpretation_status: supported
+    strength_class: supported_limited
+    active_reframe_version: "2026-04-21"
+    superseded_by: R_REFRAME_discovery_modules
+    manuscript_priority: main
+    figure_candidate: Figure6
+    caveats: [does NOT transfer to Cappuyns (see R_VAL_L3); features dominated by CD8_Dysf-eff and Tfh-like]
+
+  - result_id: R_L3_composition_noTech
+    question: Is L3 robust after removing technical annotation bins?
+    modality: scRNA-seq composition (filtered)
+    comparison: R vs NR, LOOCV
+    inputs: [patient_multilayer_features.csv]
+    sample_unit: patient
+    statistical_method: L2 logreg LOOCV (no Unknown/Doublet/Proliferating_Proliferating)
+    covariates: none
+    multiple_testing: permutation null (1000)
+    main_outputs:
+      - out/05_multilayer/tables/revision_L3_without_unknown.csv
+      - out/05_multilayer/tables/revision_permutation_null.csv
+    qc_status: passed
+    effect_size: "ROC-AUC = 0.950 (95% CI 0.832-1.00); PR-AUC = 0.912; BA = 0.798"
+    significance: "permutation p = 0.022"
+    interpretation_status: supported
+    strength_class: supported_limited
+    active_reframe_version: "2026-04-21"
+    superseded_by: R_REFRAME_discovery_modules
+    manuscript_priority: main
+    figure_candidate: SupplFig_S8
+    caveats: [slight drop vs full L3, confirming signal is biological]
+
+  # ==== L4 IO SIGNATURES ====
+  - result_id: R_L4_io_signatures_discovery
+    question: Do curated IO signatures discriminate R from NR?
+    modality: scRNA-seq IO signatures (16 panels)
+    comparison: R vs NR, LOOCV
+    inputs: [patient_multilayer_features.csv]
+    sample_unit: patient
+    statistical_method: L2 logreg LOOCV, top-3
+    covariates: none
+    multiple_testing: none at layer-level
+    main_outputs: [revision_layer_metrics.csv]
+    qc_status: passed
+    effect_size: "ROC-AUC = 0.899 (95% CI 0.747-1.00); PR = 0.783; BA = 0.840"
+    significance: "perm p = 0.015"
+    interpretation_status: supported
+    strength_class: supported_limited
+    active_reframe_version: "2026-04-21"
+    superseded_by: R_REFRAME_discovery_modules
+    manuscript_priority: supplement
+    figure_candidate: SupplFig_S6
+    caveats: [top feature is Tfh-like; overlap with L3 composition]
+
+  # ==== L5 NMF ====
+  - result_id: R_L5_nmf_discovery
+    question: Do data-driven NMF expression programs predict response in discovery?
+    modality: scRNA-seq NMF (k=10)
+    comparison: R vs NR, LOOCV
+    inputs: [patient_multilayer_features.csv, nmf_programs_patient_activity.csv]
+    sample_unit: patient
+    statistical_method: L2 logreg LOOCV, top-3 programs
+    covariates: none
+    multiple_testing: BH across 10 programs for per-programme tests
+    main_outputs:
+      - out/05_multilayer/tables/revision_nmf_bh_adjusted.csv
+      - revision_layer_metrics.csv
+      - out/05_multilayer/figures/05b_nmf_program_vs_response.png
+    qc_status: passed
+    effect_size: "ROC-AUC = 0.731 (0.512–0.922); PR-AUC = 0.481; BA = 0.681"
+    significance: "perm p=0.228"
+    interpretation_status: supported
+    strength_class: supported_limited
+    active_reframe_version: "2026-04-21"
+    superseded_by: R_REFRAME_discovery_modules
+    manuscript_priority: main
+    figure_candidate: Figure5
+    caveats: [fit on discovery only; projection to validation yields AUC 0.506]
+
+  - result_id: R_L5_NMF10_BH
+    question: Which NMF programs remain significant after BH correction?
+    modality: NMF program activity
+    comparison: R vs NR
+    inputs: [nmf_programs_patient_activity.csv]
+    sample_unit: patient
+    statistical_method: Mann-Whitney U, Cliff's delta
+    covariates: none
+    multiple_testing: BH across 10 programs
+    main_outputs: [revision_nmf_bh_adjusted.csv]
+    qc_status: passed
+    effect_size: "NMF4 delta=+0.546 (R>NR, cytotoxic T program); NMF6 delta=-0.496 (NR>R, hepatocyte/lipid program)"
+    significance: "NMF4 p_raw=0.040, p_BH=0.199; no program reaches BH<0.10 after correction"
+    interpretation_status: supported
+    strength_class: supported_limited
+    active_reframe_version: "2026-04-21"
+    superseded_by: R_REFRAME_nmf10_plasma_adjusted
+    manuscript_priority: main
+    figure_candidate: Figure5
+    caveats: [plasma/B-cell-dominated gene loadings - could reflect TLS adjacency]
+
+  # ==== BALANCED ENSEMBLE ====
+  - result_id: R_ensemble_discovery
+    question: Does the balanced 15-feature 5-layer ensemble exceed single layers?
+    modality: multi-layer
+    comparison: R vs NR LOOCV
+    inputs: [patient_multilayer_features.csv]
+    sample_unit: patient
+    statistical_method: L2 logreg LOOCV (C=0.5, balanced), 15 features
+    covariates: none
+    multiple_testing: 1000 permutation null
+    main_outputs:
+      - revision_layer_metrics.csv
+      - revision_permutation_null.csv
+      - out/05_multilayer/figures/05d_balanced_roc.png
+    qc_status: passed
+    effect_size: "ROC-AUC = 0.933 (0.815–1.00); PR 0.872; BA 0.798"
+    significance: "perm p=0.020"
+    interpretation_status: supported
+    strength_class: supported_limited
+    active_reframe_version: "2026-04-21"
+    superseded_by: R_REFRAME_discovery_modules
+    manuscript_priority: main
+    figure_candidate: Figure6
+    caveats: [does not outperform L3 alone; gain is stability not AUC; fails transfer (R_VAL_ensemble)]
+
+  # ==== EXTERNAL VALIDATION — Cappuyns 2023 ====
+  - result_id: R_VAL_L3
+    question: Does L3 composition transfer to the held-out Cappuyns atezo+bev cohort?
+    modality: scRNA-seq composition
+    comparison: R (n=19) vs NR (n=13), Cappuyns 2023
+    inputs: [out/03_validation/tables/cappuyns_per_patient_predictions.csv]
+    sample_unit: patient
+    statistical_method: locked discovery model applied without retraining
+    covariates: none
+    multiple_testing: none
+    main_outputs: [out/03_validation/tables/cappuyns_validation_results.csv]
+    qc_status: passed
+    effect_size: "ROC-AUC = 0.611 (0.398-0.802); PR 0.730; BA 0.605"
+    significance: "above nominal chance but CI crosses 0.5; driven by 2-3 outlier patients"
+    interpretation_status: null_result
+    strength_class: null
+    active_reframe_version: "2026-04-21"
+    superseded_by: R_REFRAME_cappuyns_transfer
+    manuscript_priority: main (as null finding)
+    figure_candidate: ExtendedData_Fig5
+    caveats: [regimen differs (atezo+bev vs anti-PD-1); composition features do not transfer; AUC driven by 2-3 outlier patients (pat19 L3_prob=0.999, pat34=0.985)]
+
+  - result_id: R_VAL_L5
+    question: Does L5 NMF transfer to Cappuyns?
+    modality: NMF projected activity
+    comparison: R vs NR, Cappuyns
+    inputs: [nmf_programs_patient_activity.csv (projected), cappuyns_per_patient_predictions.csv]
+    sample_unit: patient
+    statistical_method: locked discovery dictionary + logreg
+    covariates: none
+    multiple_testing: none
+    main_outputs: [cappuyns_validation_results.csv]
+    qc_status: passed
+    effect_size: "ROC-AUC = 0.506 (0.286-0.733); PR 0.620; BA 0.399"
+    significance: "no meaningful transfer; CI straddles 0.5"
+    interpretation_status: null_result
+    strength_class: null
+    manuscript_priority: main
+    figure_candidate: ExtendedData_Fig5
+    caveats: [CI crosses 0.5; NMF10 is main transferable programme]
+
+  - result_id: R_VAL_ensemble
+    question: Does the balanced ensemble transfer to Cappuyns?
+    modality: multi-layer
+    comparison: R vs NR, Cappuyns
+    inputs: [cappuyns_per_patient_predictions.csv]
+    sample_unit: patient
+    statistical_method: locked discovery ensemble
+    covariates: none
+    multiple_testing: none
+    main_outputs: [cappuyns_validation_results.csv]
+    qc_status: passed
+    effect_size: "ROC-AUC = 0.482 (0.277-0.682); PR 0.676; BA 0.605"
+    significance: "below chance"
+    interpretation_status: null_result
+    strength_class: null
+    active_reframe_version: "2026-04-21"
+    superseded_by: R_REFRAME_cappuyns_transfer
+    manuscript_priority: main (as honest-reporting caveat)
+    figure_candidate: ExtendedData_Fig5
+    caveats: [L3 drag dominates; consider L5-only transfer model in future work]
+
+  # ==== IMBRAVE150 TRIAL TRANSFER ====
+  - result_id: R_TRIAL_imbrave150_cd8
+    question: Is intratumoural CD8 IHC predictive (arm-modifying) or prognostic on IMbrave150?
+    modality: bulk clinical (IHC + outcome)
+    comparison: CD8 High vs Low within arm; arm*CD8 interaction
+    inputs: [data/clinical_trials/IMbrave150/imbrave150_fig3b_patient_data.csv]
+    sample_unit: patient (n=177; 119 atezo+bev, 58 sorafenib)
+    statistical_method: within-arm KM + log-rank; Cox with arm, CD8, arm*CD8
+    covariates: arm
+    multiple_testing: none (pre-specified hypothesis)
+    main_outputs:
+      - out/04_complementary/tables/revision_imbrave150_cd8_arm.csv
+      - out/04_complementary/tables/revision_imbrave150_cox_interaction.csv
+    qc_status: passed
+    effect_size: "Atezo+Bev PFS: 8.4 vs 5.6 mo; Cox interaction PFS HR=0.57; OS HR=0.36"
+    significance: "Atezo PFS log-rank p=0.009; Sorafenib p=0.90; interaction OS p=0.065"
+    interpretation_status: supported
+    strength_class: supported_limited
+    manuscript_priority: main
+    figure_candidate: Figure3
+    caveats: [single IHC marker, not the full ensemble; OS interaction p=0.065 only]
+
+  # ==== INTEGRATION QC ====
+  - result_id: R_QC_batch_integration
+    question: How well does Harmony mix datasets while preserving biology?
+    modality: integration diagnostics
+    comparison: Harmony vs PCA (pre-integration), 60k-cell subsample
+    inputs: [data/processed/integrated_io_atlas.h5ad]
+    sample_unit: cell
+    statistical_method: ASW, iLISI, cLISI, kBET
+    covariates: dataset, cell_type
+    multiple_testing: na
+    main_outputs:
+      - out/01_preprocessing/tables/batch_effect_metrics.csv
+      - out/01_preprocessing/tables/per_dataset_silhouette.csv
+      - out/01_preprocessing/figures/01c_*.png
+    qc_status: passed (but orthogonal method missing)
+    effect_size: "ASW-batch 0.502→0.472; ASW-bio 0.499→0.488; iLISI 1.07→2.07; cLISI 2.06→2.85"
+    significance: "Harmony doubles iLISI with <2% ASW-bio loss"
+    interpretation_status: supported
+    strength_class: supported_limited
+    manuscript_priority: supplement
+    figure_candidate: SupplFig_S13
+    caveats: [scVI comparison pending (see T1.2); kBET saturated at 1.0]
+
+  # ==== CELL-CELL COMMUNICATION / TCR / TRAJECTORIES are tracked but considered
+  # exploratory in this revision; list minimally for index completeness ====
+  - result_id: R_CCC_lr_pairs
+    question: Do ligand-receptor communication patterns differ between R and NR?
+    modality: scRNA-seq (LR scoring, 24 curated IO pairs)
+    comparison: R vs NR
+    inputs: [out/04_complementary/tables/]
+    sample_unit: patient
+    statistical_method: Mann-Whitney per pair, BH
+    covariates: none
+    multiple_testing: BH
+    main_outputs: [out/04_complementary/]
+    qc_status: partial
+    effect_size: see per-pair table
+    significance: exploratory
+    interpretation_status: exploratory
+    strength_class: exploratory
+    manuscript_priority: supplement
+    figure_candidate: ExtendedData_Fig2
+    caveats: [curated subset, not genome-wide; no CellPhoneDB null shuffling]
+
+  - result_id: R_TCR_dynamics
+    question: Do TCR clonality metrics differ between R and NR?
+    modality: scTCR-seq (subset with TCR data)
+    comparison: R vs NR
+    inputs: [data/processed/GSE206325_tcr.csv]
+    sample_unit: patient
+    statistical_method: Mann-Whitney on Shannon/Gini
+    covariates: none
+    multiple_testing: none
+    main_outputs: [out/03_validation/tables/tcr_clonality.csv]
+    qc_status: partial (sample subset)
+    effect_size: small
+    significance: exploratory
+    interpretation_status: exploratory
+    strength_class: exploratory
+    manuscript_priority: supplement
+    figure_candidate: null
+    caveats: [limited patients with paired TCR data]
+
+  # ==== REVISION / ORTHOGONAL-INTEGRATION QC ====
+  - result_id: R_QC_scvi_vs_harmony
+    question: Does an orthogonal integration method (scVI) reproduce Harmony batch-mixing and bio-preservation on the same 60k-cell subsample?
+    modality: scRNA-seq (integrated atlas, n=60,000 cells, 7 datasets)
+    comparison: scVI (n_latent=30, 25 epochs, CPU) vs Harmony vs uncorrected PCA
+    inputs:
+      - data/processed/integrated_io_atlas.h5ad (layers/counts)
+    sample_unit: cell (within atlas)
+    statistical_method: ASW, iLISI, cLISI, kBET (scib helpers)
+    covariates: batch_key=dataset, label_key=cell_type
+    multiple_testing: none (descriptive QC)
+    main_outputs:
+      - out/01_preprocessing/tables/scvi_vs_harmony_metrics.csv
+      - out/01_preprocessing/tables/batch_effect_metrics.csv (scVI row appended)
+      - out/01_preprocessing/figures/01d_scvi_umap.png
+      - out/01_preprocessing/figures/01d_scvi_metric_bars.png
+    qc_status: pass
+    effect_size:
+      scVI_asw_batch: 0.478
+      scVI_iLISI_median: 1.65
+      scVI_cLISI_median: 2.47
+      scVI_kBET_accept: 1.00
+      Harmony_asw_batch: 0.472
+      Harmony_iLISI_median: 2.07
+    significance: n/a
+    interpretation_status: supported
+    strength_class: supported_limited
+    manuscript_priority: supplement
+    figure_candidate: S01d_scvi_vs_harmony
+    caveats:
+      - Run on 60k-cell subsample (not full 1.06M) due to CPU-only driver mismatch.
+      - scVI ≈ Harmony on ASW-batch (0.478 vs 0.472); Harmony retains slightly better iLISI (2.07 vs 1.65).
+      - Supports conclusion that integration choice does not qualitatively alter downstream structure.
+
+  # ==== REVISION / CNV MECHANISTIC CHAIN ====
+  - result_id: R_L1_cnv_chain
+    question: Do CNV diversity, chromosome-arm losses, inflammation pathways, and spatial programme activity form a coherent responder-linked chain?
+    modality: scRNA-seq (CNV atlas) + spatial (GSE238264 + GSE281759)
+    comparison: R vs NR across 7 chained steps (clone diversity, CNV-SD, chr-arm deltas, pathway BH, NF-κB split, spatial NMF3 activity, spatial stromal-hepatocyte neighbourhood)
+    inputs:
+      - out/05_multilayer/tables/cnv_response_stats.csv
+      - out/05_multilayer/tables/cnv_bin_response_stats.csv
+      - out/05_multilayer/tables/cnv_pathway_enrichment.csv
+      - out/05_multilayer/tables/nmf_programs_spatial_activity.csv
+      - out/05_multilayer/tables/cnv_patient_trajectory.csv
+    sample_unit: patient (CNV) / spot (spatial)
+    statistical_method: Mann-Whitney U; BH-FDR; Spearman ρ
+    covariates: cohort (discovery only)
+    multiple_testing: BH across bins/pathways
+    main_outputs:
+      - out/05_multilayer/tables/cnv_chain_summary.csv
+      - out/05_multilayer/figures/05h_cnv_chain.png
+      - out/05_multilayer/figures/05h_cnv_chain.pdf
+    qc_status: pass
+    effect_size:
+      clone_diversity_cliff_delta: -0.47
+      cnv_sd_cliff_delta: -0.48
+      hallmark_IFNG_response_BH: 0.128
+      nmf3_spatial_rho: 0.42
+      stromal_hepatocyte_rho: 0.37
+    significance:
+      clone_diversity_p: 0.288
+      cnv_sd_p: 0.318
+      nmf3_spatial_p: 0.040
+      stromal_hepatocyte_p: 0.079
+    interpretation_status: supported
+    strength_class: likely_artifact
+    active_reframe_version: "2026-04-21"
+    manuscript_priority: main (Fig 3 revision candidate)
+    figure_candidate: F3_revised_cnv_chain
+    caveats:
+      - Small R group (n=7); all CNV R-vs-NR metrics are non-significant (p≥0.29 in current data).
+      - CNV-IFNγ pathway enrichment is also non-significant (BH=0.128); chr5 is the only chromosome with any BH<0.10 bins (8.3%).
+      - CNV clone_diversity correlates with NMF3 (rho=0.42, p=0.040) and stromal-hepatocytes (rho=0.37, p=0.079) but these are weak links.
+      - Spatial links are correlative across patient-aggregated activity, not causal.
+      - This chain is now entirely exploratory; it should not be used as a main claim.
+
+  # ==== REVISION / NMF10 TRANSFER DIAGNOSTIC ====
+  - result_id: R_L5_NMF10_transfer_diag
+    question: Is the NMF10 plasma/TLS programme independent of plasma-cell abundance?
+    modality: scRNA-seq (L5 NMF loadings + patient activity)
+    comparison: NMF10 top-50 genes vs plasma/TLS/B-cell gene panels (gene-overlap); NMF10 vs response conditional on composition (24 discovery patients)
+    inputs:
+      - out/05_multilayer/tables/nmf_programs_gene_loadings.csv
+      - out/05_multilayer/tables/nmf_programs_patient_activity.csv
+      - out/05_multilayer/tables/patient_multilayer_features.csv
+    sample_unit: gene (overlap) / patient (partial correlation)
+    statistical_method: Hypergeometric test; point-biserial and partial-correlation (Pearson residuals)
+    covariates: frac_B_Plasma, frac_B_Memory, frac_B_Naive
+    multiple_testing: n/a (5 panels, 5 control features)
+    main_outputs:
+      - out/05_multilayer/tables/nmf10_gene_overlap.csv
+      - out/05_multilayer/tables/nmf10_partial_correlation.csv
+      - out/05_multilayer/figures/05i_nmf10_transfer.png
+      - out/05_multilayer/figures/05i_nmf10_transfer.pdf
+    qc_status: pass
+    effect_size:
+      plasma_IG_overlap: "18/19 genes"
+      plasma_IG_fold_enrichment: 37.89
+      TLS_overlap: "4/13 genes"
+      TLS_fold_enrichment: 12.31
+      unconditional_r: 0.675
+      partial_r_given_frac_B_Plasma: 0.305
+      partial_r_given_frac_B_Memory: 0.704
+      partial_r_given_frac_B_Naive: 0.683
+    significance:
+      plasma_IG_p_hypergeom: 8.9e-30
+      TLS_p_hypergeom: 2.1e-04
+      unconditional_p: 3e-04
+      partial_p_given_frac_B_Plasma: 0.158
+    interpretation_status: revised_claim
+    strength_class: exploratory
+    active_reframe_version: "2026-04-21"
+    superseded_by: R_REFRAME_nmf10_plasma_adjusted
+    manuscript_priority: main (direct reviewer-risk mitigation)
+    figure_candidate: F5_supplement_nmf10_transfer
+    caveats:
+      - NMF10 is unambiguously a plasma/IG programme (18/19 canonical genes).
+      - Discovery-cohort response-association of NMF10 is largely explained by plasma-cell composition (r=0.675 -> r=0.305 after controlling for frac_B_Plasma, p=0.16).
+      - Manuscript must reframe NMF10 as a composition-linked plasma-cell signature whose apparent response-association is explained by plasma-cell abundance.
+      - Also has measurable TLS-signature overlap (CD79A/IGHG1/IGHG2/MS4A1) consistent with TLS-proximal plasma niches.
+
+# ==== PENDING / PLANNED (remaining Tier 3 items) ====
+planned:
+  - result_id: R_T3_3_pdf_rebuild
+    description: Manuscript/supplement PDF rebuild after T1–T2 text updates
+    expected_output: docs/manuscript_sci_immunol.pdf
+
+# ==== REVISION / SPATIAL SPOT-QC (T3.1) ====
+tier3_results:
+  - result_id: R_T3_1_spatial_spot_qc
+    question: Do Visium sections used throughout the spatial analyses meet standard spot-level QC thresholds (n_genes≥200, counts≥500, mt≤20%)?
+    modality: Spatial transcriptomics (Visium)
+    comparison: per-section + per-cohort summary across GSE238264 (n=7) and GSE281759 (n=17), 44,516 spots total
+    inputs:
+      - data/spatial_data/GSE238264_HCC_IO_Visium/*.h5ad
+      - data/spatial_data/GSE281759_HCC_MultiRegion/*.h5ad
+    sample_unit: spot  (within section)
+    statistical_method: descriptive (median, IQR, pass-rate)
+    covariates: none
+    multiple_testing: n/a
+    main_outputs:
+      - out/03_validation/tables/spatial_spot_qc.csv
+      - out/03_validation/tables/spatial_spot_qc_cohort.csv
+      - out/03_validation/figures/03d_spatial_spot_qc.png
+      - out/03_validation/figures/03d_spatial_spot_qc.pdf
+    qc_status: pass
+    effect_size:
+      GSE238264_cohort_pass_fraction: 0.86
+      GSE238264_cohort_n_genes_median: 2204
+      GSE238264_cohort_total_counts_median: 7500
+      GSE238264_cohort_pct_mt_median: 6.26
+      GSE281759_cohort_pass_fraction: 0.99
+      GSE281759_cohort_n_genes_median: 3530
+      GSE281759_cohort_total_counts_median: 11623
+      GSE281759_cohort_pct_mt_median: 3.96
+      HCC2R_pass_fraction: 0.44
+      HCC3R_pass_fraction: 0.83
+      HCC6NR_pass_fraction: 1.00
+    significance: n/a
+    interpretation_status: supported
+    strength_class: supported_limited
+    manuscript_priority: supplement
+    figure_candidate: S_spatial_spot_qc
+    caveats:
+      - HCC2R (GSE238264) has a low pass-rate of 43.6% (median n_genes=278) — this section is a QC outlier and any HCC2R-specific claim must be flagged or the section excluded in sensitivity analysis.
+      - HCC3R pass-rate 83% is borderline.
+      - GSE281759 multi-region cohort is uniformly high-quality (cohort-weighted pass-rate 99%).
+      - Thresholds are standard Visium defaults; more stringent thresholds (e.g., n_genes≥500) may further reduce HCC2R usable spots.
+
+  # ==== REVISION / LASSO C SENSITIVITY (T3.2) ====
+  - result_id: R_T3_2_lasso_C_sensitivity
+    question: How sensitive are the L3 and ensemble LOOCV/transfer AUCs to the LASSO/L2 regularisation strength C?
+    modality: scRNA-seq patient-level predictor
+    comparison: C grid 0.01–31.6 (15 log-spaced points) × {L1 LASSO, L2 ridge} × {L3, Ensemble}; 60 model fits total.
+    inputs:
+      - out/05_multilayer/tables/patient_multilayer_features.csv
+      - out/05_multilayer/tables/nmf_programs_patient_activity.csv
+    sample_unit: patient (GSE206325 n=24 LOOCV; Cappuyns2023 n=32 transfer)
+    statistical_method: LOOCV-AUC + transfer AUC + PR-AUC + balanced accuracy
+    covariates: cohort (transfer target)
+    multiple_testing: n/a
+    main_outputs:
+      - out/03_response_modeling/tables/lasso_C_sensitivity.csv
+      - out/03_response_modeling/tables/lasso_C_sensitivity_summary.csv
+      - out/03_response_modeling/figures/05m_lasso_C_sensitivity.png
+      - out/03_response_modeling/figures/05m_lasso_C_sensitivity.pdf
+    qc_status: pass
+    effect_size:
+      L1_ensemble_max_disc_auc: 0.916
+      L1_ensemble_C_at_max_disc: 0.316
+      L1_ensemble_C_window_lo_within_0p05: 0.178
+      L1_ensemble_C_window_hi_within_0p05: 31.623
+      L1_L3_max_disc_auc: 0.933
+      L1_L3_C_at_max_disc: 5.623
+      L2_ensemble_max_disc_auc: 0.899
+      L2_L3_max_disc_auc: 0.899
+      L1_ensemble_cappuyns_transfer_auc_at_headline_C0p3: 0.583
+      L2_L3_cappuyns_transfer_auc_median: 0.474
+    significance: n/a
+    interpretation_status: supported
+    strength_class: exploratory
+    active_reframe_version: "2026-04-21"
+    manuscript_priority: supplement
+
+  - result_id: R_T3_3_spatial_spata2_response_signatures
+    question: Do SPATA2-derived Visium signature means differ between responder and non-responder HCC sections in GSE238264?
+    modality: Spatial transcriptomics (Visium, SPATA2 reanalysis)
+    comparison: Responder (n=4 sections) vs Non_Responder (n=3 sections), GSE238264
+    inputs:
+      - out/02b_spatial_biomarkers/tables/gse238264_RvsNR_sample_level_signature_stats.csv
+      - out/02b_spatial_biomarkers/tables/gse238264_per_sample_stats.csv
+    sample_unit: section
+    statistical_method: Mann-Whitney U on per-section signature means
+    covariates: none
+    multiple_testing: Benjamini-Hochberg across 16 IO signatures
+    main_outputs:
+      - out/02b_spatial_biomarkers/tables/gse238264_RvsNR_sample_level_signature_stats.csv
+      - out/02b_spatial_biomarkers/figures/02b_visium_RvsNR_violins.png
+      - out/02b_spatial_biomarkers/figures/02b_visium_sample_signature_heatmap.png
+    qc_status: pass (24-section SPATA2 rebuild completed; sample-level summaries exported)
+    effect_size:
+      top_effect_TGF_beta: 0.343
+      top_effect_TLS_signature: 0.278
+      top_effect_T_cell_exhaustion: 0.021
+      top_effect_T_cell_cytotoxicity: 0.043
+    significance: no signature passes BH<0.10; best nominal p=0.0518 for multiple immune activation/exhaustion signatures
+    interpretation_status: supported_with_limitations
+    strength_class: exploratory
+    manuscript_priority: supplement
+    figure_candidate: S_spatial_response_signatures
+    caveats:
+      - very small section-level sample size (4 vs 3)
+      - spot-level tests show extreme p-values but are pseudoreplicated and should not be treated as primary evidence
+      - signal direction suggests responder sections are more immune-active, but formal section-level evidence is borderline after BH correction
+
+  - result_id: R_T3_4_spatial_spata2_morans_tls
+    question: Do SPATA2-derived Visium immune programs exhibit non-random spatial structure within GSE238264 sections?
+    modality: Spatial transcriptomics (Visium, SPATA2 reanalysis)
+    comparison: within-section spatial autocorrelation across GSE238264 sections
+    inputs:
+      - out/02b_spatial_biomarkers/tables/gse238264_morans_I.csv
+      - out/02b_spatial_biomarkers/tables/gse238264_spatial_entropy.csv
+    sample_unit: section-signature
+    statistical_method: kNN-based Moran's I with permutation p-values
+    covariates: none
+    multiple_testing: none applied across signatures/sections
+    main_outputs:
+      - out/02b_spatial_biomarkers/tables/gse238264_morans_I.csv
+      - out/02b_spatial_biomarkers/tables/gse238264_spatial_entropy.csv
+      - out/02b_spatial_biomarkers/figures/02b_visium_morans_I.png
+      - out/02b_spatial_biomarkers/figures/02b_visium_neighbor_enrichment_heatmap.png
+    qc_status: pass (section-wise neighborhood graphs and entropy summaries exported)
+    effect_size:
+      HCC1R_TLS_signature_moran_I: 0.472
+      HCC1R_TGF_beta_moran_I: 0.386
+      HCC1R_Antigen_presentation_moran_I: 0.399
+      HCC2R_TLS_signature_moran_I: 0.262
+    significance: multiple section-signature combinations have permutation p<=0.01; strongest structure observed for TLS, antigen-presentation, and TGF-beta programs
+    interpretation_status: supported
+    strength_class: supported_limited
+    manuscript_priority: supplement
+    figure_candidate: S_spatial_autocorrelation
+    caveats:
+      - result describes within-section spatial structure, not a responder-vs-non-responder effect test
+      - multiple-testing correction across all section-signature pairs has not yet been applied
+      - Moran's I magnitude varies materially by section, consistent with heterogeneous tissue architecture
+    figure_candidate: S_lasso_C_sensitivity
+    caveats:
+      - Discovery LOOCV-AUC is robust across the full ~3-log-decade C grid for both L1 and L2 (max-AUC plateau spans ≥0.67 of the grid for L1, 100% for L2) — the headline C choices (L3 C=1.0 L2, Ensemble C=0.3 L1) sit inside the plateau.
+      - Cappuyns L3 transfer AUC stays near chance (median 0.47, range 0.47–0.50) at every C — confirming the bounded external result is not a regularisation artefact.
+      - Ensemble Cappuyns transfer peaks at AUC 0.65 under low-regularisation settings, dropping to 0.55 near the headline C=0.3; report in supplement as a caveat on the ensemble-transfer claim.
+
+# ==== REVISION / STRATIFIED PERMUTATION (T2.1) ====
+revision_results:
+  - result_id: R_T2_1_stratified_permutation
+    question: Does design stratification (n_cells tertile) inflate the permutation null AUCs and explain the observed L3/ensemble performance?
+    modality: scRNA-seq patient-level predictor
+    comparison: Label shuffle stratified within n_cells tertile vs unstratified, 500 permutations each, LOOCV-AUC
+    inputs:
+      - out/05_multilayer/tables/patient_multilayer_features.csv
+      - out/05_multilayer/tables/nmf_programs_patient_activity.csv
+    sample_unit: patient (GSE206325 n=24)
+    statistical_method: LOOCV logistic regression; one-sided permutation p
+    covariates: n_cells tertile (strata)
+    multiple_testing: n/a
+    main_outputs:
+      - out/05_multilayer/tables/revision_permutation_null_stratified.csv
+      - out/05_multilayer/figures/05j_stratified_null.png
+      - out/05_multilayer/figures/05j_stratified_null.pdf
+    qc_status: pass
+    effect_size:
+      L3_obs_auc: 0.983
+      L3_null_median_unstratified: 0.697
+      L3_null_median_stratified: 0.714
+      Ensemble_obs_auc: 0.950
+      Ensemble_null_median_unstratified: 0.706
+      Ensemble_null_median_stratified: 0.710
+    significance:
+      L3_p_one_sided_unstratified: 0.006
+      L3_p_one_sided_stratified: 0.002
+      Ensemble_p_one_sided_unstratified: 0.016
+      Ensemble_p_one_sided_stratified: 0.006
+    interpretation_status: supported
+    strength_class: supported_limited
+    active_reframe_version: "2026-04-21"
+    manuscript_priority: supplement
+    figure_candidate: S_strat_null
+    caveats:
+      - np.random.permutation already preserves the marginal 7R/17NR count; the stratified null is an additional conditioning on depth tertile.
+      - Stratification leaves the observed p-values essentially unchanged → depth imbalance is not a confounder.
+
+  # ==== REVISION / NMF10 CAPPUYNS TRANSFER (T2.2-ext) ====
+  - result_id: R_L5_NMF10_cappuyns_transfer
+    question: Does the NMF10 programme retain response-association in Cappuyns and pooled cohorts after a harmonised total-B/plasma composition control?
+    modality: scRNA-seq (discovery) + bulk deconvolution (Cappuyns)
+    comparison: Discovery (n=24) vs Cappuyns2023 (n=32) vs pooled (n=56); marginal r and partial r | total_B_plasma; pooled logit with cohort fixed effect.
+    inputs:
+      - out/05_multilayer/tables/patient_multilayer_features.csv
+      - out/05_multilayer/tables/nmf_programs_patient_activity.csv
+    sample_unit: patient
+    statistical_method: point-biserial, partial Pearson; logistic regression
+    covariates: total_B_plasma (harmonised = frac_B_Plasma + frac_B_Memory + frac_B_Naive [discovery] or frac_B_cell + frac_Plasma [Cappuyns]); cohort fixed effect in pooled logit
+    multiple_testing: n/a
+    main_outputs:
+      - out/05_multilayer/tables/nmf10_partial_correlation_pooled.csv
+      - out/05_multilayer/tables/nmf10_partial_correlation_cappuyns.csv
+      - out/05_multilayer/tables/nmf10_pooled_logit_models.csv
+      - out/05_multilayer/figures/05k_nmf10_cappuyns_transfer.png
+      - out/05_multilayer/figures/05k_nmf10_cappuyns_transfer.pdf
+    qc_status: pass
+    effect_size:
+      discovery_marginal_r: 0.675
+      discovery_partial_r: 0.585
+      cappuyns_marginal_r: 0.257
+      cappuyns_partial_r: 0.404
+      pooled_marginal_r: 0.346
+      pooled_partial_r: 0.380
+      pooled_logit_NMF10_coef_full: 64.857
+      pooled_logit_totalB_coef_full: -37.579
+      pooled_logit_cohort_coef_full: 2.932
+    significance:
+      discovery_marginal_p: 0.000293
+      discovery_partial_p: 0.003
+      cappuyns_marginal_p: 0.156
+      cappuyns_partial_p: 0.024
+      pooled_marginal_p: 0.009
+      pooled_partial_p: 0.004
+      pooled_logit_NMF10_p_full: 0.004
+      pooled_logit_totalB_p_full: 0.022
+      pooled_logit_cohort_p_full: 0.004
+    interpretation_status: supported
+    strength_class: likely_artifact
+    active_reframe_version: "2026-04-21"
+    superseded_by: R_REFRAME_nmf10_plasma_adjusted
+    manuscript_priority: main (updates the NMF10 narrative)
+    figure_candidate: F5_main_nmf10_transfer_pooled
+    caveats:
+      - Discovery and Cappuyns measure B/plasma composition by different modalities (scRNA-seq vs bulk deconvolution); the harmonised total-B/plasma control is the closest feasible bridge.
+      - Marginal NMF10–response association is small in Cappuyns; conditional association emerges only after adjustment, consistent with NMF10 encoding a plasma-programme-state dimension distinct from total B-cell abundance.
+      - Cohort coefficient is large (dataset_cap=+2.93, p=0.004): part of the pooled NMF10 signal travels with cohort membership; main-text must state this explicitly.
+
+  # ==== REVISION / CNV → EXHAUSTION → RESPONSE MEDIATION (T2.3) ====
+  - result_id: R_T2_3_cnv_exhaustion_mediation
+    question: Does T-cell exhaustion mediate the CNV clone-diversity → non-response effect within the discovery cohort?
+    modality: scRNA-seq patient-level (GSE206325 n=24)
+    comparison: Standard mediation with CNV clone diversity (X), T-cell exhaustion signature (M), response (Y); 1000 nonparametric bootstrap replicates for CIs.
+    inputs:
+      - out/05_multilayer/tables/patient_multilayer_features.csv
+      - out/05_multilayer/tables/nmf_programs_spatial_activity.csv
+      - out/05_multilayer/tables/nmf_programs_gene_loadings.csv
+    sample_unit: patient (mediation) + section (spatial consistency)
+    statistical_method: OLS (a), logistic regression (b, c, c'); bootstrap CIs
+    covariates: none
+    multiple_testing: n/a
+    main_outputs:
+      - out/05_multilayer/tables/cnv_exhaustion_mediation_summary.csv
+      - out/05_multilayer/tables/cnv_exhaustion_mediation_bootstrap.csv
+      - out/05_multilayer/tables/spatial_exhaustion_consistency.csv
+      - out/05_multilayer/figures/05l_cnv_exhaustion_chain.png
+      - out/05_multilayer/figures/05l_cnv_exhaustion_chain.pdf
+    qc_status: pass (with caveats)
+    effect_size:
+      a_X_to_M: -0.283
+      b_M_to_Y_given_X: 2.195
+      c_total_X_to_Y: -1.276
+      c_prime_direct: -1.249
+      indirect_a_times_b: -0.621
+      prop_mediated_point: 0.487
+    significance:
+      a_p: 0.180
+      b_p: 0.048
+      c_total_p: 0.039
+      c_prime_p: 0.090
+      indirect_95CI_lo: -39.357
+      indirect_95CI_hi: 0.366
+    interpretation_status: exploratory
+    strength_class: exploratory
+    active_reframe_version: "2026-04-21"
+    manuscript_priority: supplement
+    figure_candidate: S_cnv_exhaustion_mediation
+    caveats:
+      - n=24 is underpowered for formal mediation; bootstrap CIs for the indirect effect are wide and include zero.
+      - Path a is not individually significant (p=0.18); therefore the mediation claim cannot be advanced as strong.
+      - Total effect CNV→response remains significant (c=-1.28, p=0.039), consistent with the T1.3 CNV-chain summary.
+      - Spatial-section consistency check (n=4R/3NR) finds NMF3 R-vs-NR p=0.40 and a NMF1 (exhaustion-proxy) p=0.86 → spatial-level exhaustion linkage is not supported at this sample size.
+
+  # ==== REVISION / VALIDATION STRENGTHENING (T3.5) ====
+  - result_id: R_T3_5_nested_validation_strengthening
+    question: How much do discovery layer/ensemble AUCs change when feature selection is nested inside each LOOCV fold and uncertainty is estimated by refit bootstrap and nested permutation?
+    modality: scRNA-seq patient-level multilayer predictor
+    comparison: GSE206325 discovery R (n=7) vs NR (n=17); L1/L2/L3/L3-noTech/L4/L5/Balanced ensemble
+    inputs:
+      - out/05_multilayer/tables/patient_multilayer_features.csv
+      - out/05_multilayer/tables/nmf_programs_patient_activity.csv
+    sample_unit: patient
+    statistical_method: nested LOOCV logistic regression with fold-internal Welch-statistic feature selection; refit OOB bootstrap; nested label-shuffle permutation null
+    covariates: none
+    multiple_testing: none at layer-level; permutation p-values reported per target
+    main_outputs:
+      - out/05_multilayer/tables/validation_strengthening_nested_metrics.csv
+      - out/05_multilayer/tables/validation_strengthening_refit_bootstrap_oob.csv
+      - out/05_multilayer/tables/validation_strengthening_nested_permutation_null.csv
+      - out/05_multilayer/figures/05n_nested_layer_metrics.png
+      - out/05_multilayer/figures/05n_nested_layer_metrics.pdf
+    qc_status: pending_full_slurm_run; smoke_test_passed_with_N_PERM_1_N_BOOT_2
+    effect_size: pending full run; smoke test indicates L3_noTech remains high while L5 drops to near-null under nested feature selection
+    significance: pending full run
+    interpretation_status: pending
+    strength_class: inconclusive
+    active_reframe_version: "2026-05-12"
+    manuscript_priority: main_source_of_truth_after_completion
+    figure_candidate: S_nested_validation_strengthening
+    caveats:
+      - Full discovery cohort is small (n=24; 7 responders), so refit bootstrap intervals may be wide and assumption-sensitive.
+      - This result supersedes non-nested layer AUCs for claims about discovery model performance once the full SLURM run completes.
+      - Smoke-test outputs are diagnostic only and must not be cited as final values.
+
+  - result_id: R_T3_6_cappuyns_transport_jackknife
+    question: Which discovery-selected features fail transport to Cappuyns, and are locked Cappuyns validation AUCs driven by individual patients?
+    modality: scRNA-seq cross-cohort validation
+    comparison: locked GSE206325-trained models applied to Cappuyns2023 R (n=19) vs NR (n=13), with patient jackknife and selected-feature transport QC
+    inputs:
+      - out/05_multilayer/tables/patient_multilayer_features.csv
+      - out/05_multilayer/tables/nmf_programs_patient_activity.csv
+    sample_unit: patient and selected feature
+    statistical_method: locked logistic regression transfer; leave-one-patient-out Cappuyns AUC jackknife; missingness/dynamic-range/zero-fraction/effect-direction transport QC
+    covariates: none
+    multiple_testing: BH within selected-feature transport tests
+    main_outputs:
+      - out/05_multilayer/tables/cappuyns_locked_validation_metrics.csv
+      - out/05_multilayer/tables/cappuyns_locked_predictions.csv
+      - out/05_multilayer/tables/cappuyns_jackknife_auc.csv
+      - out/05_multilayer/tables/cappuyns_outlier_sensitivity_summary.csv
+      - out/05_multilayer/tables/cappuyns_selected_feature_transport_qc.csv
+      - out/05_multilayer/figures/05n_cappuyns_jackknife.png
+      - out/05_multilayer/figures/05n_cappuyns_jackknife.pdf
+      - out/05_multilayer/figures/05n_feature_transport_qc.png
+      - out/05_multilayer/figures/05n_feature_transport_qc.pdf
+    qc_status: pending_full_slurm_run; smoke_test_passed_with_N_PERM_1_N_BOOT_2
+    effect_size: pending full run; locked smoke-test metrics reproduce weak Cappuyns transfer for L3 and the ensemble
+    significance: pending full run; expected to remain boundary/null validation unless transport QC identifies a defensible subset
+    interpretation_status: pending
+    strength_class: inconclusive
+    active_reframe_version: "2026-05-12"
+    manuscript_priority: main_boundary_validation
+    figure_candidate: S_cappuyns_transport_qc
+    caveats:
+      - Cappuyns differs by regimen (atezolizumab/bevacizumab vs anti-PD-1 discovery) and feature harmonisation depth.
+      - Jackknife identifies influence, not a license to exclude patients post hoc.
+      - Negative transfer should be retained as a study boundary rather than replaced post hoc.
+
+  - result_id: R_T3_7_gse202069_bulk_module_bridge
+    question: Can a bulk RNA-seq HCC immunotherapy cohort provide orthogonal module-level validation of discovery immune programs?
+    modality: bulk RNA-seq module scoring
+    comparison: GSE202069 sample-level locked immune-module scores; optional R-vs-NR validation if curated labels are supplied
+    inputs:
+      - data/pre_treatment/GSE202069_Zhu2023_antiPDL1/GSE202069_gene_tpm_expression.txt.gz
+      - data/clinical_metadata/GSE202069_response_labels.csv
+    sample_unit: bulk sample/patient
+    statistical_method: locked module gene-set scoring by z-scored TPM and Mann-Whitney/rank-biserial response tests when labels are available
+    covariates: none in first-pass module scoring
+    multiple_testing: BH across scored modules if response labels are available
+    main_outputs:
+      - out/05_multilayer/tables/gse202069_bulk_module_scores.csv
+      - out/05_multilayer/tables/gse202069_bulk_module_validation.csv
+      - out/05_multilayer/tables/gse202069_response_label_template.csv
+    qc_status: pending_full_slurm_run; label_file_expected_missing
+    effect_size: pending curated response labels
+    significance: pending curated response labels
+    interpretation_status: pending
+    strength_class: inconclusive
+    active_reframe_version: "2026-05-12"
+    manuscript_priority: supplement_after_label_curation
+    figure_candidate: null
+    caveats:
+      - This is an orthogonal bulk module bridge, not a replacement for Cappuyns single-cell validation.
+      - Inference is skipped unless curated response labels are added at data/clinical_metadata/GSE202069_response_labels.csv.
+      - Bulk scores cannot validate cell-composition models at single-cell resolution.
+
+  - result_id: R_T3_8_mechanistic_immune_niche_integration
+    question: Which immune mechanisms explain the discovery response architecture, and which are supported only as exploratory spatial/protein validation targets?
+    modality: scRNA-seq module integration + Visium spatial transcriptomics + response-level ligand-receptor summaries + public IMC dataset triage
+    comparison: GSE206325 R (n=7) vs NR (n=17); GSE238264 Visium R (n=4 sections) vs NR (n=3 sections); public HCC IMC dataset suitability scan
+    inputs:
+      - scripts/05_multilayer/05o_mechanistic_immune_niche.py
+      - out/06_reframe/tables/discovery_module_associations.csv
+      - out/06_reframe/tables/discovery_immune_axis_pc1.csv
+      - out/06_reframe/tables/external_consistency_module_summary.csv
+      - out/04_complementary/tables/ligand_receptor_expression.csv
+      - out/04_complementary/tables/lr_interaction_scores.csv
+      - out/04_complementary/tables/cd8_state_fractions.csv
+      - out/04_complementary/tables/04i_pseudotime_patient_stats.csv
+      - out/06_reframe/tables/spatial_RvsNR_section_level_LOSO.csv
+      - out/02b_spatial_biomarkers/tables/gse238264_per_sample_stats.csv
+      - out/02b_spatial_biomarkers/tables/gse238264_neighbor_enrichment.csv
+    sample_unit: patient for primary discovery module/PC1 inference; section for Visium; response aggregate for LR/CD8-state descriptive summaries; dataset for public IMC triage
+    statistical_method: patient-level Mann-Whitney U and BH-adjusted module tests from source tables; PC1 Mann-Whitney U; exact section-label permutation for Visium summaries; descriptive LR product aggregation; structured public dataset suitability assessment
+    covariates: none in 05o integration; Cappuyns transfer boundary imported from locked-validation tables
+    multiple_testing: BH-FDR in source discovery module table; section-level spatial summaries are exploratory and not promoted after multiple-testing burden
+    main_outputs:
+      - out/05_multilayer/tables/05o_mechanistic_evidence_matrix.csv
+      - out/05_multilayer/tables/05o_mechanistic_core_axis_summary.csv
+      - out/05_multilayer/tables/05o_mechanistic_pc1_patient_stats.csv
+      - out/05_multilayer/tables/05o_mechanistic_lr_panel_summary.csv
+      - out/05_multilayer/tables/05o_mechanistic_cd8_trajectory_summary.csv
+      - out/05_multilayer/tables/05o_mechanistic_spatial_module_support.csv
+      - out/05_multilayer/tables/05o_mechanistic_spatial_signature_section_stats.csv
+      - out/05_multilayer/tables/05o_mechanistic_spatial_neighbor_summary.csv
+      - out/05_multilayer/tables/05o_public_imc_dataset_assessment.csv
+      - out/05_multilayer/tables/05o_mechanistic_qc_report.csv
+      - out/05_multilayer/figures/05o_mechanistic_immune_niche_summary.png
+      - out/05_multilayer/figures/05o_mechanistic_immune_niche_summary.pdf
+      - out/05_multilayer/notes/05o_mechanistic_interpretation_note.json
+    qc_status: passed (19 input tables audited; 05o rerun completed without errors; no missing claim_strength labels; script ASCII check passed)
+    effect_size:
+      discovery_core_modules: "M_Tfh rb=0.832 BH=0.0107; M_CD8_dysfunction rb=0.782 BH=0.0133; M_Immune_checkpoint rb=0.748 BH=0.0152; M_TLS rb=0.647 BH=0.0458"
+      immune_axis_PC1: "median_R=1.865, median_NR=-1.175, median_diff=3.040, rb=0.815"
+      LR_descriptive_priorities: "CXCL13-CXCR5 log2FC_RvsNR=1.70; PD-1/PD-L1 log2FC=1.08; CXCR3 chemokine recruitment log2FC=0.56"
+      CD8_pseudotime_patient: "median_diff=0.0019, Cliff_delta=0.378"
+      spatial_borderline_modules: "CD8_dysfunction p_section=0.0571 LOSOmax=0.133; Antigen_presentation p_section=0.0571 LOSOmax=0.100"
+      best_public_IMC_candidate: "Salie/Bengsch HCC ICI therapy IMC cohort, Zenodo 10.5281/zenodo.10794904, 42 patients, 86 ROIs"
+    significance:
+      discovery_core: "4 core modules BH<0.05; CD8_activation suggestive BH=0.079"
+      immune_axis_PC1: "MWU p=0.00105"
+      CD8_pseudotime_patient: "MWU p=0.166 (not significant)"
+      spatial: "borderline exact p=0.0571 for CD8_dysfunction and Antigen_presentation; exploratory only"
+      ligand_receptor: "descriptive; no patient-level p-value"
+    interpretation_status: supported_with_boundaries
+    strength_class: supported_limited
+    manuscript_priority: main_and_supplement
+    figure_candidate: F_mechanistic_immune_niche_summary
+    recommended_panel_type: evidence_matrix_plus_compact_multiplot
+    expected_information_density: high
+    expected_label_burden: medium
+    caveats:
+      - "The mechanistic axis is discovery-supported but externally bounded: Cappuyns locked transfer is null/opposite for several core modules, so this is not a universal predictive-biomarker claim."
+      - "LR summaries are response-level aggregate expression products; they prioritize hypotheses but do not establish patient-level sender-receiver mechanisms."
+      - "CD8 state fractions currently lack patient-level state-fraction testing; cell-level p-values must remain descriptive."
+      - "GSE238264 spatial support is underpowered (n=7 sections) and should be used only as localization/context, not validation of prediction."
+      - "The public IMC dataset scan identifies a strong validation opportunity but does not itself analyze the IMC data; a separate download/processing workflow is required."
+
+  - result_id: R_REFRAME_common_vs_regimen_classification
+    question: Which discovery response signals are common across cohorts/modalities, which are regimen-shifted, and which are platform/artifact driven?
+    modality: cross-cohort synthesis (scRNA-seq discovery and Cappuyns transfer + IMC protein-spatial architecture + IMbrave150 clinical support)
+    comparison: GSE206325 discovery R (n=7) vs NR (n=17); Cappuyns2023 transfer R (n=19) vs NR (n=13); IMC ICI cohort R (n=5) vs NR (n=37) and immunotype architecture; IMbrave150 CD8-high vs CD8-low within Atezo+Bev and Sorafenib arms
+    inputs:
+      - scripts/06_reframe/06h_common_vs_regimen_classification.py
+      - out/06_reframe/tables/discovery_module_associations.csv
+      - out/06_reframe/tables/cappuyns_locked_transfer.csv
+      - out/05_multilayer/tables/cappuyns_selected_feature_transport_qc.csv
+      - out/05_multilayer/tables/cappuyns_locked_validation_metrics.csv
+      - out/05_multilayer/tables/cappuyns_outlier_sensitivity_summary.csv
+      - out/03_validation/imc_validation/tables/imc_mwu_results.csv
+      - out/03_validation/imc_validation/tables/imc_kw_results.csv
+      - out/03_validation/imc_validation/tables/imc_contingency_results.csv
+      - out/06_reframe/tables/imbrave150_orthogonal_support.csv
+    sample_unit: patient for scRNA-seq and IMbrave150; patient-level IMC response tests; immunotype-level IMC architecture summaries
+    statistical_method: deterministic evidence classification from audited Mann-Whitney/rank-biserial transfer tables, locked-model AUCs, IMC Kruskal-Wallis/Mann-Whitney summaries, and IMbrave150 log-rank/Cox support
+    covariates: none in the classification layer; source IMbrave150 Cox includes arm, CD8-high, and arm x CD8-high interaction
+    multiple_testing: inherited from source analyses (BH across locked modules, selected features, and IMC feature families); no new inferential testing introduced
+    main_outputs:
+      - out/06_reframe/tables/common_vs_regimen_feature_classification.csv
+      - out/06_reframe/tables/common_vs_regimen_summary.csv
+      - out/06_reframe/tables/common_vs_regimen_caveat_audit.csv
+      - out/06_reframe/notes/common_vs_regimen_interpretation_note.json
+      - out/06_reframe/figures/06h_common_vs_regimen_scatter.png
+      - out/06_reframe/figures/06h_common_vs_regimen_scatter.pdf
+      - out/06_reframe/figures/06h_common_vs_regimen_evidence_matrix.png
+      - out/06_reframe/figures/06h_common_vs_regimen_evidence_matrix.pdf
+    qc_status: pass (44 axes classified; required input columns checked; no warnings/errors on rerun; IMC response-underpowered rows blocked from common_supported; NMF10/plasma rows forced to artifact_or_platform)
+    effect_size:
+      classification_counts: "common_supported=1; common_suggestive=6; orthogonal_context=8; regimen_shift=11; artifact_or_platform=2; null_or_inconclusive=16"
+      strongest_common_supported: "frac_cDC2 / APC fraction: discovery rb=-0.496, p=0.0645; Cappuyns rb=-0.648, p=0.00228, selected-feature BH=0.0343"
+      common_suggestive_examples: "NMF4 cytotoxic T program, MYC regulon axis, TLS module, WNT module, progenitor-CD8 module, and modest L2 regulon transfer"
+      orthogonal_context_examples: "IMC CD8-rich spatial architecture and IMbrave150 CD8-high PFS within Atezo+Bev; these contextualize biology but do not validate the multilayer predictor"
+      regimen_shift_examples: "M_Tfh, M_CD8_dysfunction, M_Immune_checkpoint, CD8 fraction, plasma fraction, Tfh/checkpoint/exhaustion signatures flip or collapse in Cappuyns"
+      artifact_or_platform_examples: "M_plasma_proxy and NMF10 plasma/IG program retained as composition-linked/plasma platform artifacts for independent-response claims"
+    significance:
+      common_supported: "Only cDC2/APC fraction meets direction-concordant selected-feature Cappuyns BH support in this classifier."
+      imc_boundary: "IMC architecture features are KW/BH-supported across immunotypes but response tests are underpowered and non-significant after correction (5R/37NR)."
+      imbrave_boundary: "Atezo+Bev CD8-high PFS p=0.009, but arm x CD8 interaction remains null for PFS (p=0.181)."
+    interpretation_status: supported_with_boundaries
+    strength_class: supported_limited
+    active_reframe_version: "2026-05-18"
+    manuscript_priority: main_and_supplement
+    figure_candidate: F_common_vs_regimen_boundary
+    recommended_panel_type: effect_scatter_plus_evidence_matrix
+    expected_information_density: high
+    expected_label_burden: medium
+    caveats:
+      - "This is an evidence classification over audited outputs, not a new primary inferential test; source-table assumptions and sample-size limits propagate into the classification."
+      - "Cappuyns is cross-regimen transfer (atezolizumab+bevacizumab), not same-regimen validation of the GSE206325 anti-PD-1 discovery signal."
+      - "IMC supports protein-spatial immune architecture but cannot strongly validate response because the response-labelled IMC cohort has only 5 responders and 37 non-responders."
+      - "IMbrave150 supports CD8-high PFS within Atezo+Bev but does not validate the multilayer predictor and does not support a differential-benefit claim because arm x CD8 interaction is null for PFS."
+      - "NMF10/plasma rows are explicitly classified as artifact_or_platform for independent-response claims after plasma-adjustment audits."
+      - "Only cDC2/APC is promoted as common_supported; NMF4, MYC-axis, TLS, WNT, and progenitor-CD8 remain common_suggestive hypotheses, and the discovery CORE immune axis is regimen-bounded rather than universal."
+      - "IMC and IMbrave150 rows are separated as orthogonal_context to avoid overstating them as cross-cohort feature validation."
+
+# ==========================================================================
+# BACKFILLED RESULT ENTRIES (existing outputs not previously indexed)
+# ==========================================================================
+backfilled_results:
+
+  # ---- Preprocessing / QC ----
+  - result_id: R_QC_preprocessing_summary
+    question: Per-dataset QC, batch structure, and response balance across the integrated atlas
+    modality: scRNA-seq (8-dataset integrated atlas)
+    comparison: per-dataset descriptive QC + response stratification
+    inputs: [data/pre_treatment/*/*.h5ad]
+    sample_unit: cell / dataset
+    statistical_method: descriptive + ASW batch/bio + silhouette per dataset
+    main_outputs:
+      - out/01_preprocessing/tables/qc_summary.csv
+      - out/01_preprocessing/tables/response_counts_by_dataset.csv
+      - out/01_preprocessing/tables/batch_effect_metrics.csv
+      - out/01_preprocessing/tables/per_dataset_silhouette.csv
+    qc_status: pass
+    interpretation_status: supported
+    strength_class: strong
+    manuscript_priority: methods_and_supplement
+    figure_candidate: S_qc_overview
+    caveats:
+      - Response labels only assigned to datasets with clinical annotation (GSE206325, Cappuyns2023, partial GSE202069); other datasets contribute unlabelled context cells only.
+
+  # ---- Layer 2 / TME composition & signatures ----
+  - result_id: R_L2_celltype_abundance_R_vs_NR
+    question: Which cell-type compositions differ between Responders and Non-Responders in the integrated atlas?
+    modality: scRNA-seq pseudobulk composition
+    comparison: patient-level fractions R vs NR
+    inputs: [data/processed/integrated_io_atlas.h5ad]
+    sample_unit: patient
+    statistical_method: Mann–Whitney U + BH
+    multiple_testing: BH across 58 cell types
+    main_outputs:
+      - out/02a_response_tme/tables/celltype_abundance_R_vs_NR.csv
+      - out/02a_response_tme/tables/deg_R_vs_NR_per_celltype.csv
+    qc_status: pass
+    effect_size:
+      top_depleted_in_R: Stromal_Hepatocytes (log2FC=-3.61)
+      top_enriched_in_R_signature: T_cell_exhaustion (effect=+0.126)
+    interpretation_status: supported
+    strength_class: supported_limited
+    manuscript_priority: main_and_supplement
+    figure_candidate: F2_composition
+    caveats:
+      - n_R=26, n_NR=30 (GSE206325 only); raw p-values are atlas-cell-level (inflated); patient-level padj is the correct adjusted value.
+      - Multiple BH-adjusted hits only at trend level (padj≈0.13).
+
+  - result_id: R_L2_signature_R_vs_NR
+    question: Which curated immune/stroma signatures differ between Responders and Non-Responders?
+    modality: scRNA-seq signature scoring (scanpy sc.tl.score_genes)
+    comparison: atlas-cell-level R vs NR, with tissue-specific subset
+    inputs: [data/processed/integrated_io_atlas.h5ad]
+    sample_unit: patient (aggregated from cells)
+    statistical_method: Mann–Whitney U + BH
+    main_outputs:
+      - out/02a_response_tme/tables/signature_R_vs_NR.csv
+      - out/02a_response_tme/tables/tissue_signature_R_vs_NR.csv
+    qc_status: pass
+    effect_size:
+      top_enriched_in_R: T_cell_exhaustion (effect=+0.126)
+    interpretation_status: supported
+    strength_class: supported_limited
+    manuscript_priority: main_and_supplement
+    figure_candidate: F2_signatures
+    caveats:
+      - Cell-level p-values are inflated by pseudoreplication; interpret effect sizes as the primary evidence and confirm with patient-level tests.
+
+  # ---- Layer 2 / Spatial GSE238264 (pre-treatment HCC IO Visium) ----
+  - result_id: R_L2_spatial_gse238264_RvsNR
+    question: Do Responder vs Non-Responder Visium sections differ in canonical immune/stroma signatures, immune gradient, and spatial organisation?
+    modality: Spatial transcriptomics (Visium, GSE238264 n=7)
+    comparison: Responder (n=4) vs Non-Responder (n=3) sections; spot-level + section-level
+    inputs: [data/spatial_data/GSE238264_HCC_IO_Visium/*.h5ad]
+    sample_unit: spot + section (sample-level permutation)
+    statistical_method: Mann–Whitney U (spot-level) + sample-level permutation
+    main_outputs:
+      - out/02b_spatial_biomarkers/tables/gse238264_RvsNR_signature_stats.csv
+      - out/02b_spatial_biomarkers/tables/gse238264_per_sample_stats.csv
+      - out/02b_spatial_biomarkers/tables/gse238264_sample_level_permutation.csv
+      - out/02b_spatial_biomarkers/tables/gse238264_leave_one_out.csv
+      - out/02b_spatial_biomarkers/tables/gse238264_immune_gradient.csv
+      - out/02b_spatial_biomarkers/tables/gse238264_morans_I.csv
+      - out/02b_spatial_biomarkers/tables/gse238264_spatial_cluster_profiles.csv
+      - out/02b_spatial_biomarkers/tables/gse238264_spatial_entropy.csv
+      - out/02b_spatial_biomarkers/tables/gse238264_top_SVGs_per_section.csv
+      - out/02b_spatial_biomarkers/tables/gse238264_celltype_composition.csv
+      - out/02b_spatial_biomarkers/tables/gse238264_celltype_annotations.csv
+      - out/02b_spatial_biomarkers/tables/gse238264_ligand_receptor.csv
+    qc_status: pass_with_caveats
+    effect_size:
+      top_R_enriched_signature: Progenitor_CD8 (effect=+0.078)
+    interpretation_status: supported
+    strength_class: exploratory
+    active_reframe_version: "2026-04-21"
+    superseded_by: R_REFRAME_spatial_modules_LOSO
+    manuscript_priority: main_and_supplement
+    figure_candidate: F3_spatial_RvsNR
+    caveats:
+      - n=7 sections (4R / 3NR) is small; sample-level permutation tests are the robust inference, spot-level p-values are pseudoreplicated.
+      - HCC2R section has low spot-QC pass-rate (R_T3_1) → leave-one-out sensitivity already generated.
+
+  - result_id: R_L2_spatial_gse281759_tumor_vs_normal
+    question: Which signatures distinguish tumour vs paired normal regions in the GSE281759 multi-region Visium cohort?
+    modality: Spatial transcriptomics (Visium, GSE281759 n=17)
+    comparison: Tumour vs Normal spots (paired)
+    inputs: [data/spatial_data/GSE281759_HCC_MultiRegion/*.h5ad]
+    sample_unit: spot
+    statistical_method: Mann–Whitney U
+    main_outputs:
+      - out/02b_spatial_biomarkers/tables/gse281759_tumor_vs_normal_stats.csv
+    qc_status: pass
+    effect_size:
+      Antigen_presentation: effect=+0.72 (Tumour>Normal, p<1e-300)
+    interpretation_status: supported
+    strength_class: strong
+    manuscript_priority: supplement
+    figure_candidate: S_gse281759_TvsN
+    caveats:
+      - Enormous spot count drives vanishingly small p-values; report effect sizes primarily.
+
+  - result_id: R_L2_spatial_gse281759_primary_vs_recurrence
+    question: Which signatures differ between primary and recurrence tumour regions in GSE281759?
+    modality: Spatial transcriptomics (Visium)
+    comparison: Primary vs Recurrence spots
+    main_outputs:
+      - out/02b_spatial_biomarkers/tables/gse281759_primary_vs_recurrence_stats.csv
+    effect_size:
+      TGF_beta: effect=+0.306 in Primary vs Recurrence
+    qc_status: pass
+    interpretation_status: supported
+    strength_class: supported_limited
+    manuscript_priority: supplement
+    figure_candidate: S_gse281759_PvsR
+    caveats:
+      - Exploratory; recurrence sampling is unbalanced and donor-confounded.
+
+  - result_id: R_L2_spatial_pseudobulk_comparison
+    question: Do spatial pseudobulk signatures recapitulate scRNA-seq R-vs-NR differences?
+    main_outputs: [out/02b_spatial_biomarkers/tables/pseudobulk_group_comparison.csv]
+    qc_status: pass
+    interpretation_status: supported
+    strength_class: supported_limited
+    manuscript_priority: supplement
+
+  # ---- Bulk deconvolution reference ----
+  - result_id: R_bulk_cibersortx_reference
+    question: CIBERSORTx signature matrix built from the HCC atlas for bulk deconvolution
+    modality: scRNA-seq → bulk reference
+    main_outputs: [out/02c_bulk_deconvolution/tables/cibersortx_hcc_reference.tsv]
+    qc_status: pass
+    interpretation_status: supported
+    strength_class: strong
+    manuscript_priority: methods_and_supplement
+
+  # ---- Cappuyns cross-cohort signatures ----
+  - result_id: R_L4_cappuyns_signatures_transfer
+    question: Do Cappuyns-2023 published cell-state signatures stratify Responders in GSE206325?
+    modality: cross-cohort signature scoring
+    inputs:
+      - out/02i_cappuyns_signatures/tables/cappuyns_signatures_parsed.json
+      - data/processed/integrated_io_atlas.h5ad
+    main_outputs:
+      - out/02i_cappuyns_signatures/tables/patient_level_cappuyns_scores.csv
+      - out/02i_cappuyns_signatures/tables/cappuyns_signature_stats.csv
+      - out/02i_cappuyns_signatures/tables/patient_molecular_subsets.csv
+    qc_status: pass
+    effect_size:
+      Macro_CXCL10_R_vs_NR: effect=-0.10, p=0.0042, padj=0.048 (depleted in R)
+    interpretation_status: supported
+    strength_class: supported_limited
+    manuscript_priority: main_and_supplement
+    figure_candidate: F4_cappuyns_transfer
+    caveats:
+      - n_R=7, n_NR=17 (GSE206325 labelled subset); BH over 21 signatures → only one padj<0.05.
+
+  - result_id: R_L4_concordance_internal_vs_cappuyns
+    question: Do internal immunotypes (Subtype_1/2/3) concord with the Cappuyns-defined immune-competent vs resistant split?
+    main_outputs:
+      - out/02j_concordance/tables/concordance_crosstab.csv
+      - out/02j_concordance/tables/concordance_merged.csv
+      - out/02j_concordance/tables/concordance_stats.csv
+    statistical_method: Chi-squared + Cohen's kappa
+    effect_size:
+      chi2: 9.37
+      p: 0.0092
+      cohens_kappa: 0.553
+    qc_status: pass
+    interpretation_status: supported
+    strength_class: supported_limited
+    manuscript_priority: supplement
+    caveats:
+      - n=24 only; kappa=0.55 is moderate agreement.
+
+  - result_id: R_L4_cappuyns_spatial_localization
+    question: Where in tissue do the Cappuyns signatures localise across Visium sections?
+    main_outputs:
+      - out/02k_cappuyns_spatial/tables/spatial_cappuyns_section_scores.csv
+    qc_status: pass
+    interpretation_status: exploratory
+    strength_class: exploratory
+    manuscript_priority: supplement
+    figure_candidate: S_cappuyns_spatial
+
+  # ---- Validation (Layer 5 extras + supporting tables) ----
+  - result_id: R_VAL_bootstrap_effects
+    question: Bootstrap stability of R-vs-NR signature effect sizes (400 resamples)
+    main_outputs: [out/03_validation/tables/bootstrap_effects.csv]
+    statistical_method: patient-level bootstrap (B=400)
+    qc_status: pass
+    interpretation_status: supported
+    strength_class: supported_limited
+    manuscript_priority: supplement
+
+  - result_id: R_VAL_lasso_coefficients
+    question: Which features are retained in the headline LASSO models (L3 and Ensemble)?
+    main_outputs: [out/03_validation/tables/lasso_coefficients.csv]
+    qc_status: pass
+    interpretation_status: supported
+    strength_class: strong
+    manuscript_priority: main_and_supplement
+    figure_candidate: F5_lasso_coefficients
+
+  - result_id: R_VAL_rf_feature_importance
+    question: Random-forest feature importance (sensitivity to LASSO choice)
+    main_outputs: [out/03_validation/tables/rf_feature_importance.csv]
+    qc_status: pass
+    interpretation_status: supported
+    strength_class: supported_limited
+    manuscript_priority: supplement
+
+  - result_id: R_VAL_pathway_enrichment
+    question: Pathway-level enrichment of R-vs-NR signature hits
+    main_outputs: [out/03_validation/tables/pathway_enrichment.csv]
+    qc_status: pass
+    interpretation_status: supported
+    strength_class: supported_limited
+    manuscript_priority: supplement
+
+  - result_id: R_VAL_bulk_signature_scores
+    question: Bulk RNA-seq signature scores (trial cohorts) for signature transfer
+    main_outputs: [out/03_validation/tables/bulk_signature_scores.csv]
+    qc_status: pass
+    interpretation_status: supported
+    strength_class: supported_limited
+    manuscript_priority: supplement
+
+  - result_id: R_VAL_signature_correlation
+    question: Cross-signature correlation matrix (collinearity diagnostic)
+    main_outputs: [out/03_validation/tables/signature_correlation.csv]
+    qc_status: pass
+    interpretation_status: supported
+    strength_class: supported_limited
+    manuscript_priority: supplement
+
+  - result_id: R_VAL_patient_features
+    question: Final patient-level feature matrix used by the predictor
+    main_outputs: [out/03_validation/tables/patient_features.csv]
+    qc_status: pass
+    interpretation_status: supported
+    strength_class: strong
+    manuscript_priority: methods_and_supplement
+
+  # ---- Layer 4 complementary analyses ----
+  - result_id: R_complementary_cd8_states
+    question: Which CD8 functional states differ between Responders and Non-Responders?
+    main_outputs:
+      - out/04_complementary/tables/cd8_state_fractions.csv
+      - out/04_complementary/tables/cd8_state_tests.csv
+      - out/05_multilayer/tables/cd8_dysfunctional_effector_markers.csv
+    statistical_method: Mann–Whitney U + BH over 6 states
+    effect_size:
+      Naive_like: effect=-0.16 (depleted in R)
+    qc_status: pass
+    interpretation_status: supported
+    strength_class: supported_limited
+    manuscript_priority: main_and_supplement
+    figure_candidate: F3_cd8_states
+    caveats:
+      - Cell-level p-values are pseudoreplicated; patient-level analysis confirms CD8 dysfunctional-effector is the top discriminator.
+
+  - result_id: R_complementary_pseudotime
+    question: Does CD8 pseudotime (exhaustion trajectory) differ between Responders and Non-Responders?
+    main_outputs:
+      - out/04_complementary/tables/04i_pseudotime_patient_means.csv
+      - out/04_complementary/tables/04i_pseudotime_patient_stats.csv
+      - out/04_complementary/tables/04i_pseudotime_response_stats.csv
+    statistical_method: Mann–Whitney U (patient-level)
+    qc_status: pass
+    interpretation_status: supported
+    strength_class: supported_limited
+    manuscript_priority: supplement
+    figure_candidate: S_pseudotime
+
+  - result_id: R_complementary_immune_ratios
+    question: Do classical immune ratios (CD8:Treg, M1:M2, etc.) predict response?
+    main_outputs:
+      - out/04_complementary/tables/immune_ratios.csv
+      - out/04_complementary/tables/immune_ratio_aucs.csv
+    effect_size:
+      best_ratio_auc: CD8_Treg_ratio AUC=0.469  (near chance)
+    qc_status: pass
+    interpretation_status: null_finding
+    strength_class: null
+    active_reframe_version: "2026-04-21"
+    manuscript_priority: supplement
+    caveats:
+      - Classical ratios are not predictive on their own in this cohort; null finding reported in supplement.
+
+  - result_id: R_complementary_patient_subtypes
+    question: Do unsupervised patient immune subtypes stratify response rate?
+    main_outputs:
+      - out/04_complementary/tables/patient_immune_subtypes.csv
+      - out/04_complementary/tables/subtype_response_rates.csv
+    qc_status: pass
+    interpretation_status: supported
+    strength_class: supported_limited
+    manuscript_priority: main_and_supplement
+    figure_candidate: F4_immune_subtypes
+
+  - result_id: R_complementary_hallmark
+    question: Which hallmark pathways differ between Responders and Non-Responders?
+    main_outputs: [out/04_complementary/tables/hallmark_pathway_R_vs_NR.csv]
+    statistical_method: Mann–Whitney U + BH over 20 hallmarks
+    effect_size:
+      Interferon_alpha: effect=+0.036 (enriched in R)
+    qc_status: pass
+    interpretation_status: supported
+    strength_class: supported_limited
+    manuscript_priority: main_and_supplement
+
+  - result_id: R_complementary_cross_dataset_signatures
+    question: Cross-dataset consistency of key signatures across 7 atlases
+    main_outputs: [out/04_complementary/tables/cross_dataset_signatures.csv]
+    qc_status: pass
+    interpretation_status: supported
+    strength_class: supported_limited
+    manuscript_priority: supplement
+
+  - result_id: R_complementary_ligand_receptor
+    question: Ligand–receptor interaction scores across the atlas
+    main_outputs:
+      - out/04_complementary/tables/ligand_receptor_expression.csv
+      - out/04_complementary/tables/lr_interaction_scores.csv
+    qc_status: pass
+    interpretation_status: supported
+    strength_class: supported_limited
+    manuscript_priority: supplement
+
+  - result_id: R_TRIAL_imbrave150_cox
+    question: Cox interaction modelling of CD8-high stratum vs treatment arm in IMbrave150
+    main_outputs:
+      - out/04_complementary/tables/revision_imbrave150_cd8_arm.csv
+      - out/04_complementary/tables/revision_imbrave150_cox_interaction.csv
+    statistical_method: Cox PH with arm × CD8-high interaction
+    effect_size:
+      PFS_cd8_high_HR: 0.90 (95% CI 0.47–1.74, p=0.76)
+    qc_status: pass
+    interpretation_status: null_finding
+    strength_class: null
+    manuscript_priority: supplement
+    superseded_by: R_REFRAME_imbrave150_orthogonal
+    active_reframe_version: "2026-04-21"
+    caveats:
+      - No significant CD8-high × arm interaction in IMbrave150 PFS or OS; honest null finding, must be disclosed.
+
+  # ---- Layer 5 multilayer: NMF catalogue and CNV detail ----
+  - result_id: R_L5_nmf_programs_catalogue
+    question: Full 10-program NMF catalogue with loadings, activity (patient / bulk / spatial), and R-vs-NR stats
+    main_outputs:
+      - out/05_multilayer/tables/nmf_programs_gene_loadings.csv
+      - out/05_multilayer/tables/nmf_top_genes_per_program.csv
+      - out/05_multilayer/tables/nmf_programs_patient_activity.csv
+      - out/05_multilayer/tables/nmf_programs_bulk_activity.csv
+      - out/05_multilayer/tables/nmf_programs_spatial_activity.csv
+      - out/05_multilayer/tables/nmf_programs_response_stats.csv
+    qc_status: pass
+    effect_size:
+      NMF10_effect_R_vs_NR: +1.49 (p=5.4e-4; raw, BH elsewhere)
+    interpretation_status: supported
+    strength_class: strong
+    manuscript_priority: main_and_supplement
+    figure_candidate: F5_nmf_overview
+
+  - result_id: R_L5_nmf10_partial_corr_full
+    question: Partial-correlation diagnostics for NMF10 across cohorts (GSE206325, Cappuyns, pooled)
+    main_outputs:
+      - out/05_multilayer/tables/nmf10_gene_overlap.csv
+      - out/05_multilayer/tables/nmf10_partial_correlation.csv
+      - out/05_multilayer/tables/nmf10_partial_correlation_cappuyns.csv
+      - out/05_multilayer/tables/nmf10_partial_correlation_pooled.csv
+      - out/05_multilayer/tables/nmf10_pooled_logit_models.csv
+    qc_status: pass
+    interpretation_status: supported
+    strength_class: supported_limited
+    manuscript_priority: main_and_supplement
+    caveats:
+      - See R_L5_NMF10_transfer_diag and R_L5_NMF10_cappuyns_transfer for integrated interpretation — NMF10 is dominated by plasma/Ig genes and its response signal attenuates after composition control.
+
+  - result_id: R_L1_cnv_chromosome_arm
+    question: Chromosome-arm-level CNV differences between Responders and Non-Responders
+    main_outputs:
+      - out/05_multilayer/tables/cnv_chromosome_arm_stats.csv
+      - out/05_multilayer/tables/cnv_bin_response_stats.csv
+      - out/05_multilayer/tables/cnv_gene_response_ranked.csv
+      - out/05_multilayer/tables/cnv_response_stats.csv
+      - out/05_multilayer/tables/cnv_patient_trajectory.csv
+    statistical_method: per-bin Mann–Whitney U + BH over 22 arms
+    qc_status: pass
+    interpretation_status: supported
+    strength_class: exploratory
+    active_reframe_version: "2026-04-21"
+    manuscript_priority: main_and_supplement
+    figure_candidate: F6_cnv_arms
+
+  - result_id: R_L1_cnv_pathway_enrichment
+    question: Pathway enrichment of CNV-affected genes gained in Responders vs Non-Responders
+    main_outputs: [out/05_multilayer/tables/cnv_pathway_enrichment.csv]
+    effect_size:
+      HALLMARK_INTERFERON_GAMMA_RESPONSE: 2/10 genes (GBP1, STAT1), adj-p=0.015, OR=18.4 (gained in R)
+    qc_status: pass
+    interpretation_status: supported
+    strength_class: exploratory
+    active_reframe_version: "2026-04-21"
+    manuscript_priority: main_and_supplement
+    figure_candidate: F6_cnv_pathways
+    caveats:
+      - Only 3 enriched terms survive after filtering; small gene sets, wide odds-ratio CIs.
+
+  # ---- Layer 5 interpretability / variance partition / balanced models ----
+  - result_id: R_L5_shap_attribution
+    question: SHAP / coefficient attribution of the final ensemble across the 5 layers
+    main_outputs:
+      - out/05_multilayer/tables/shap_feature_attribution.csv
+      - out/05_multilayer/tables/shap_layer_attribution.csv
+    qc_status: pass
+    interpretation_status: supported
+    strength_class: supported_limited
+    manuscript_priority: main_and_supplement
+    figure_candidate: F5_shap
+
+  - result_id: R_L5_variance_partition
+    question: Leave-one-layer-out variance partition across L1–L5
+    main_outputs: [out/05_multilayer/tables/variance_partition.csv]
+    qc_status: pass
+    interpretation_status: supported
+    strength_class: supported_limited
+    manuscript_priority: main_and_supplement
+
+  - result_id: R_L5_balanced_models
+    question: Class-balanced sensitivity models (LOOCV + bootstrap CIs) for each layer
+    main_outputs:
+      - out/05_multilayer/tables/balanced_layer_aucs.csv
+      - out/05_multilayer/tables/balanced_layer_aucs_bootCI.csv
+      - out/05_multilayer/tables/balanced_cumulative_auc.csv
+      - out/05_multilayer/tables/balanced_selected_features.csv
+      - out/05_multilayer/tables/balanced_variance_partition.csv
+    qc_status: pass
+    interpretation_status: supported
+    strength_class: supported_limited
+    manuscript_priority: supplement
+    caveats:
+      - Class balancing via reweighting does not change the rank order of layer AUCs but narrows the L3 vs Ensemble gap.
+
+  - result_id: R_L3_revision_without_unknown
+    question: Robustness of L3 composition predictor after excluding Unknown/low-confidence cell-types
+    main_outputs: [out/05_multilayer/tables/revision_L3_without_unknown.csv]
+    effect_size:
+      L3_composition_noTech_AUC: 0.983 (CI 0.925–1.00)
+    qc_status: pass
+    interpretation_status: supported
+    strength_class: strong
+    manuscript_priority: main_and_supplement
+    figure_candidate: F5_L3_robustness
+
+  - result_id: R_L5_revision_layer_metrics
+    question: Revision-cycle layer metrics recomputed with updated QC and BH correction
+    main_outputs:
+      - out/05_multilayer/tables/revision_layer_metrics.csv
+      - out/05_multilayer/tables/revision_nmf_bh_adjusted.csv
+    qc_status: pass
+    interpretation_status: supported
+    strength_class: supported_limited
+    manuscript_priority: methods_and_supplement
+
+  - result_id: R_spatial_exhaustion_consistency
+    question: Is the exhaustion↔CNV signal consistent at the spatial level (GSE238264)?
+    main_outputs: [out/05_multilayer/tables/spatial_exhaustion_consistency.csv]
+    qc_status: pass_with_caveats
+    interpretation_status: exploratory
+    strength_class: exploratory
+    manuscript_priority: supplement
+    caveats:
+      - n=7 sections; used as supporting evidence for R_T2_3, not as an independent claim.
+
+  # ---- Supplementary tables (manuscript-facing) ----
+  - result_id: R_supp_patient_demographics
+    question: Patient-level demographics and clinical annotation table
+    main_outputs:
+      - out/06_manuscript_figures/tables/S12_patient_demographics.csv
+      - out/06_manuscript_figures/tables/S13_sample_overview.csv
+      - out/06_manuscript_figures/tables/S14_cohort_summary.csv
+      - out/06_manuscript_figures/Supplementary_Tables.xlsx
+    qc_status: pass
+    interpretation_status: supported
+    strength_class: strong
+    manuscript_priority: supplement
+    figure_candidate: ST_demographics
+
+  # ---- Core predictor artefacts (folded into ensemble discovery / validation) ----
+  - result_id: R_ensemble_coefficients
+    question: Final fitted coefficients of the cross-layer ensemble predictor
+    main_outputs: [out/05_multilayer/tables/ensemble_coefficients.csv]
+    qc_status: pass
+    interpretation_status: supported
+    strength_class: supported_limited
+    active_reframe_version: "2026-04-21"
+    superseded_by: R_REFRAME_discovery_modules
+    manuscript_priority: main_and_supplement
+    figure_candidate: F5_ensemble_coefficients
+    notes: Companion artefact to R_ensemble_discovery
+
+  - result_id: R_layer_aucs_raw
+    question: Raw per-layer LOOCV AUCs (pre-revision headline table)
+    main_outputs: [out/05_multilayer/tables/layer_aucs.csv]
+    qc_status: pass
+    interpretation_status: supported
+    strength_class: strong
+    manuscript_priority: methods_and_supplement
+    notes: Superseded by R_L5_revision_layer_metrics for reporting; retained for reproducibility.
+
+  - result_id: R_VAL_cappuyns_per_patient_predictions
+    question: Per-patient predicted probabilities on the Cappuyns cohort (companion to R_VAL_ensemble)
+    main_outputs: [out/03_validation/tables/cappuyns_per_patient_predictions.csv]
+    qc_status: pass
+    interpretation_status: supported
+    strength_class: supported_limited
+    manuscript_priority: supplement
+
+# ==========================================================================
+# REFRAME (2026-04-21): IMMUNE-ECOLOGY RE-CENTERING
+# ----------------------------------------------------------------------
+# CNV is NO LONGER the narrative anchor. Thesis is re-centered on an
+# immune-active intratumoural ecology (CD8 dysfunction/activation + a
+# Tfh/plasma/TLS-linked programme) with explicit separation of discovery-
+# only signals from transferable findings.
+#
+# Allowed strength_class values (declared in analysis_standards §Claim control
+# and enforced across this file):
+#   strong, supported_limited, exploratory, null, inconclusive, likely_artifact
+# All prior off-schema labels have been mapped into the six allowed values
+# above (low-effect items -> null or exploratory; null-effect items -> null;
+# near-threshold null items -> null). Legacy entries that have been superseded carry
+#   superseded_by: <active_result_id>
+#   active_reframe_version: "2026-04-21"
+# so downstream tooling can always resolve the current canonical status.
+# ==========================================================================
+reframe_2026_04_21:
+
+  # ---- Reconciliation ----
+  - result_id: R_REFRAME_unit_reconciliation
+    question: Reconcile patient vs sample vs section units across all cohorts; resolve n=24 vs n=56 ambiguity.
+    modality: meta-audit
+    comparison: cross-cohort unit reconciliation (GSE206325, Cappuyns2023, IMbrave150, GSE238264, GSE281759)
+    inputs:
+      - data/processed/GSE206325_sample_annotations.csv
+      - out/05_multilayer/tables/patient_multilayer_features.csv
+      - out/02i_cappuyns_signatures/tables/patient_level_cappuyns_scores.csv
+      - out/04_complementary/tables/revision_imbrave150_cd8_arm.csv
+    sample_unit: patient (scRNA) / section (Visium) / patient (IMbrave150)
+    statistical_method: descriptive audit (no inferential test)
+    covariates: n/a
+    multiple_testing: n/a
+    main_outputs:
+      - out/06_reframe/tables/cohort_unit_reconciliation.csv
+      - out/06_reframe/tables/gse206325_patient_audit.csv
+      - out/06_reframe/notes/cohort_unit_reconciliation.md
+    qc_status: pass
+    effect_size:
+      GSE206325_raw_patients: 29
+      GSE206325_labelled_patients: 28
+      GSE206325_retained_discovery: 24  # (17 NR / 7 R; dropped 15, 63, 71, 98 for low cell yield; 1024 unlabelled)
+      Cappuyns2023_patients: 32
+      pooled_size: 56
+      IMbrave150_trial_patients: 177    # 119 Atezo+Bev (60 CD8-high + 59 CD8-low) + 58 Sorafenib (29 + 29)
+      GSE238264_sections: 7             # 4R / 3NR
+    significance: n/a (descriptive)
+    interpretation_status: supported
+    strength_class: strong
+    manuscript_priority: methods
+    figure_candidate: F1_cohort_overview
+    caveats:
+      - The n=56 figure applies to the POOLED discovery+Cappuyns set (24+32), not to GSE206325 alone; any prior wording attributing all 56 units to GSE206325 is a bookkeeping error and is withdrawn.
+      - Earlier reconciliation listed IMbrave150 as n=4 because the script counted the four arm×endpoint summary rows; the correct trial cohort is 177 patients.
+      - All R-vs-NR inference from here onwards is patient-level for scRNA and section-level for Visium; cell-level/spot-level p-values are treated as exploratory only.
+
+  # ---- Discovery (GSE206325): locked immune-module panel ----
+  - result_id: R_REFRAME_discovery_modules
+    question: Which patient-level immune modules (locked panel, platform-measurable) are associated with response in GSE206325 after BH correction within the module family?
+    modality: scRNA-seq, patient-level
+    comparison: R (n=7) vs NR (n=17), GSE206325 discovery cohort
+    inputs:
+      - out/05_multilayer/tables/patient_multilayer_features.csv
+      - out/05_multilayer/tables/nmf_programs_patient_activity.csv
+    sample_unit: patient
+    statistical_method: Mann–Whitney U + rank-biserial effect size
+    covariates: none
+    multiple_testing: BH-FDR across the 14 locked modules
+    main_outputs:
+      - out/06_reframe/tables/discovery_module_associations.csv
+      - out/06_reframe/tables/discovery_module_correlation.csv
+      - out/06_reframe/tables/discovery_module_redundancy.csv
+      - out/06_reframe/tables/discovery_top5_rho_matrix.csv
+      - out/06_reframe/tables/discovery_top5_axis_pairs.csv
+      - out/06_reframe/tables/discovery_top5_axis_summary.csv
+      - out/06_reframe/tables/discovery_immune_axis_pc1.csv
+      - out/06_reframe/tables/discovery_immune_axis_pc1_loadings.csv
+    qc_status: pass
+    effect_size:
+      M_plasma_proxy_NMF10: rb=+0.849
+      M_Tfh:                rb=+0.832
+      M_TLS:                rb=+0.832
+      M_CD8_dysfunction:    rb=+0.782
+      M_Immune_checkpoint:  rb=+0.748
+      M_CD8_activation:     rb=+0.580  # suggestive, not BH-significant
+      top5_rho_all_range:    "0.624 to 0.993 (n_pairs=10, median=0.896)"
+      core4_rho_range:       "0.888 to 0.993 (core4 = CD8_dysfunction, Tfh, TLS, Immune_checkpoint; n_pairs=6, median=0.937)"
+      plasma_vs_core4_rho:   "0.624 to 0.770 (n_pairs=4, median=0.637)"
+      immune_axis_PC1_variance_explained: see discovery_immune_axis_pc1_loadings.csv
+    significance:
+      M_plasma_proxy_NMF10: p_BH=0.0036
+      M_Tfh:                p_BH=0.0036
+      M_TLS:                p_BH=0.0036
+      M_CD8_dysfunction:    p_BH=0.0066
+      M_Immune_checkpoint:  p_BH=0.0091
+      M_CD8_activation:     p_BH=0.066
+    interpretation_status: supported
+    strength_class: supported_limited
+    manuscript_priority: main_and_supplement
+    figure_candidate: F2_discovery_immune_axis
+    caveats:
+      - "The top-5 BH-strong modules do NOT collapse into a single rho>0.9 axis. The true geometry is a tight CORE-4 block (CD8_dysfunction, Tfh, TLS, Immune_checkpoint; pairwise rho 0.888–0.993) plus M_plasma_proxy, which is partially aligned (rho 0.624–0.770 against the core-4). Manuscript wording must describe one core immune-active axis with a plasma/TLS-linked satellite, not a fully collapsed single axis."
+      - "Discovery-only; no module survives transfer (see R_REFRAME_cappuyns_transfer). Claim is BOUNDED to GSE206325 discovery cohort."
+      - "n=24 (7R/17NR) is small; patient-level test is defensible but power is limited."
+
+  # ---- Cappuyns locked-module transfer ----
+  - result_id: R_REFRAME_cappuyns_transfer
+    question: Do the locked immune modules transfer to Cappuyns2023 with concordant sign and effect?
+    modality: scRNA-seq cross-cohort transfer
+    comparison: R (n=19) vs NR (n=13) in Cappuyns2023; dynamic-range check + sign concordance vs GSE206325 discovery
+    inputs:
+      - out/05_multilayer/tables/patient_multilayer_features.csv
+    sample_unit: patient
+    statistical_method: Mann–Whitney U, rank-biserial, Q5–Q95 range overlap, sign-concordance with discovery
+    covariates: none (cross-cohort transfer check)
+    multiple_testing: BH-FDR across the 14 locked modules
+    main_outputs:
+      - out/06_reframe/tables/cappuyns_locked_transfer.csv
+    qc_status: pass
+    effect_size:
+      transfer_pass_rate: 0/14 modules survive BH<0.10
+      sign_concordance_strong_modules:
+        M_Tfh:               sign_flipped
+        M_CD8_dysfunction:   sign_flipped
+        M_Immune_checkpoint: sign_flipped
+        M_TLS:               sign_concordant (NS, rb=+0.31)
+        M_plasma_proxy:      sign_concordant (NS, rb=+0.17)
+      dynamic_range_all_adequate: true
+    significance:
+      best_BH: 0.51
+    interpretation_status: null_finding
+    strength_class: null
+    manuscript_priority: main_and_supplement
+    figure_candidate: F3_transfer_failure_and_composition
+    caveats:
+      - This is the critical null result of the reframe. No discovery module reaches BH<0.10 in Cappuyns; three of the top-5 discovery modules flip sign.
+      - Dynamic range is adequate in all 14 modules → this is NOT a measurement failure; it is a true non-transfer of the discovery biology.
+      - Under the reframe, the earlier framing that described the discovery modules as a cross-cohort-validated immune signature is withdrawn.
+
+  # ---- Pooled sensitivity with cohort term ----
+  - result_id: R_REFRAME_pooled_sensitivity
+    question: When GSE206325 and Cappuyns are pooled with a cohort covariate, which module effects survive cohort adjustment?
+    modality: pooled scRNA-seq logit (n=56)
+    comparison: R (n=26) vs NR (n=30) pooled, cohort as covariate
+    inputs:
+      - out/05_multilayer/tables/patient_multilayer_features.csv
+    sample_unit: patient (cohort as covariate)
+    statistical_method: logistic regression (standardized module + cohort binary) with delta-AIC vs cohort-only
+    covariates: cohort (GSE206325 vs Cappuyns2023)
+    multiple_testing: BH-FDR across the 14 modules
+    main_outputs:
+      - out/06_reframe/tables/pooled_sensitivity_cohort_adjusted.csv
+      - out/06_reframe/tables/pooled_sensitivity_module_x_cohort.csv
+    qc_status: pass
+    effect_size:
+      modules_significant_after_BH: 0
+      modules_with_cohort_larger_than_module_beta: 6  # M_Tfh, M_plasma_proxy, M_TLS, M_Immune_checkpoint, M_CD8_dysfunction, M_WNT
+      modules_cohort_dominated: 5                     # M_CD8_activation, M_Angiogenesis, M_Macrophage_M2, M_TGFbeta, M_Treg
+      only_non_cohort_dominated:
+        M_CD8_progenitor: "neg, p_BH=0.087"
+        M_mregDC:         "neg, p_BH=0.087"
+      module_x_cohort_interaction_LRT:
+        M_TLS:             "p=0.0047, BH=0.065 (attenuated 5.76->0.60 from GSE206325 to Cappuyns)"
+        M_Tfh:             "p=0.015,  BH=0.108 (attenuated 3.34->0.23)"
+        M_CD8_dysfunction: "p=0.036,  BH=0.166 (attenuated 2.03->0.17)"
+        interpretation: "effect MAGNITUDE collapses between cohorts for the core-axis modules; the additive pooled model is therefore not a safe effect estimator"
+    significance: no p_BH < 0.05 (any module, after cohort adjustment)
+    interpretation_status: supported  # supported interpretation: pooled signal is cohort-driven
+    strength_class: likely_artifact   # any "pooled significance" is a cohort signature, not a biology signature
+    manuscript_priority: supplement
+    figure_candidate: S_pooled_cohort_dominance
+    caveats:
+      - Under the reframe, pooled-model "significance" is re-classified as cohort-driven. No claim of cross-cohort biological effect may be built from this table.
+      - The formal module x cohort interaction sensitivity (LRT) shows significant attenuation of the core-axis modules M_TLS (p=0.005), M_Tfh (p=0.015) and M_CD8_dysfunction (p=0.036) between GSE206325 and Cappuyns. This confirms the additive pooled model is a cautionary sanity check, not a biological effect estimator.
+
+  # ---- NMF10 re-framing: plasma/Ig programme, not independent ----
+  - result_id: R_REFRAME_nmf10_plasma_adjusted
+    question: Does the NMF10 response association survive adjustment for plasma-cell composition?
+    modality: scRNA-seq patient-level (GSE206325 discovery + pooled sensitivity)
+    comparison: NMF10 activity vs response, with and without adjustment for frac_B_Plasma
+    inputs:
+      - out/05_multilayer/tables/patient_multilayer_features.csv
+      - out/05_multilayer/tables/nmf_programs_patient_activity.csv
+    sample_unit: patient
+    statistical_method: Spearman correlation + plasma-frac residualisation; logistic regression with frac_B_Plasma as covariate
+    covariates: frac_B_Plasma
+    multiple_testing: n/a (single programme, directed hypothesis)
+    main_outputs:
+      - out/06_reframe/tables/nmf10_plasma_reframe.csv
+    qc_status: pass
+    effect_size:
+      discovery_naive_spearman: 0.669
+      discovery_plasma_adjusted_spearman: 0.205  # association collapses
+      discovery_logit_beta_NMF10_with_plasma: near zero
+      pooled_logit_beta_NMF10_with_plasma: retained only because Cappuyns frac_B_Plasma is structurally zero → adjustment uninformative
+    significance:
+      discovery_naive_p: 3.5e-4
+      discovery_adjusted_p: 0.336
+      discovery_logit_p_NMF10_with_plasma: 0.962
+      pooled_logit_p_NMF10_with_plasma: 0.070
+    interpretation_status: supported  # adjusted picture is defensible
+    strength_class: likely_artifact   # original NMF10-is-independent claim is composition-driven
+    manuscript_priority: main_and_supplement
+    figure_candidate: F3_transfer_failure_and_composition
+    caveats:
+      - The earlier claim that NMF10 is an independent plasma/IG programme unexplained by plasma-cell abundance is WITHDRAWN. The discovery NMF10–response association is no longer supported after plasma adjustment (residualised rho 0.67→0.21, p=0.34; logit p_NMF10=0.96 when frac_B_Plasma is a covariate).
+      - The pooled logit apparent "survival" (p_NMF10=0.07) is an illustration of why cross-platform adjustment is not informative here — frac_B_Plasma is structurally zero in Cappuyns — not evidence for an NMF10 effect beyond plasma composition.
+
+  # ---- Spatial GSE238264 — niche localization + section-level LOSO ----
+  - result_id: R_REFRAME_spatial_modules_LOSO
+    question: Where in tissue do the locked immune modules localize, and are section-level R-vs-NR differences robust to leave-one-section-out?
+    modality: Visium (GSE238264, n=7 sections, 4R / 3NR)
+    comparison: R (n=4 sections) vs NR (n=3 sections); within-section spot-level co-localization
+    inputs:
+      - data/spatial_data/GSE238264_HCC_IO_Visium/
+      - out/05_multilayer/tables/nmf_programs_gene_loadings.csv
+    sample_unit: section (inferential); spot (descriptive niche coherence only)
+    statistical_method: section-level module score + exact permutation p (C(7,4)=35) + LOSO sensitivity; spot-level Spearman niche-coherence
+    covariates: none
+    multiple_testing: none at section level (n_modules=8, exploratory only; max LOSO p reported per module)
+    main_outputs:
+      - out/06_reframe/tables/spatial_modules_per_section.csv
+      - out/06_reframe/tables/spatial_RvsNR_section_level_LOSO.csv
+      - out/06_reframe/tables/spatial_niche_coherence.csv
+      - out/06_reframe/tables/spatial_modules_per_spot.csv.gz
+    qc_status: pass_with_caveats
+    effect_size:
+      exploratory_borderline_modules:
+        CD8_dysfunction:      "mean_R=-0.008, mean_NR=-0.000, sign-stable under LOSO"
+        Antigen_presentation: "mean_R=+1.02,  mean_NR=+0.47,  sign-stable under LOSO"
+      section_not_supported: [Tfh, Plasma, TLS, Immune_checkpoint, Stromal_Hepatocyte, CD8_activation]
+      niche_coherence_median_rho_across_sections:
+        CD8_dysfunction_vs_TLS: 0.12
+        Tfh_vs_Plasma:          0.04
+        TLS_vs_Plasma:          0.06
+        Stromal_Hep_vs_Plasma: -0.01
+    significance:
+      CD8_dysfunction:      "p_section=0.057, LOSO_p_max=0.133, fraction_LOSO_p<0.10 = 0.00"
+      Antigen_presentation: "p_section=0.057, LOSO_p_max=0.100, fraction_LOSO_p<0.10 = 0.43"
+      all_other_modules:    "p_section >= 0.20 OR LOSO sign unstable"
+    interpretation_status: exploratory
+    strength_class: exploratory
+    manuscript_priority: supplement
+    figure_candidate: S_spatial_modules_LOSO
+    caveats:
+      - "n=7 sections (4R/3NR). Only CD8_dysfunction and Antigen_presentation reach borderline exact-permutation p<0.10 with sign-stable LOSO; maximum-LOSO p rises to 0.10–0.13. This is EXPLORATORY / BORDERLINE support at best, not section-level supported."
+      - HCC2R section (T3.1 spot-QC pass=43.6%) is a declared QC outlier; LOSO is the safety net.
+      - Niche coherence (spot-level Spearman between modules within each section) is small (median rho 0.00–0.12). The immune-active modules are NOT strongly co-localized at Visium resolution. Any "TLS niche" claim must be section-level compositional, not spot-level co-expression.
+      - No spatial R-vs-NR classification claim may be built from n=7 sections; spatial support is descriptive localization only.
+
+  # ---- IMbrave150 orthogonal support, strict boundaries ----
+  - result_id: R_REFRAME_imbrave150_orthogonal
+    question: Does IMbrave150 support immune-active benefit on Atezo+Bev, and does CD8-high show a differential benefit between arms?
+    modality: bulk RNA + survival (IMbrave150, n=177 patients)
+    comparison: CD8-high vs CD8-low within each arm (Atezo+Bev n=119; Sorafenib n=58) + arm×CD8 interaction
+    inputs:
+      - out/04_complementary/tables/revision_imbrave150_cd8_arm.csv
+      - out/04_complementary/tables/revision_imbrave150_cox_interaction.csv
+    sample_unit: patient
+    statistical_method: within-arm log-rank + Cox proportional hazards with arm × CD8-high interaction
+    covariates: arm, CD8-high (in Cox); none in within-arm log-rank
+    multiple_testing: none applied across the 2 endpoints (PFS, OS); interpretation is pre-specified endpoint-by-endpoint
+    main_outputs:
+      - out/06_reframe/tables/imbrave150_orthogonal_support.csv
+    qc_status: pass
+    effect_size:
+      AtezoBev_PFS_CD8high_vs_low_median_mo: "8.4 vs 5.6"
+      Sorafenib_PFS_CD8high_vs_low_median_mo: "4.23 vs 5.17"
+      arm_x_CD8_interaction_PFS_HR: "0.571 (95% CI 0.252–1.298)"
+      arm_x_CD8_interaction_OS_HR:  "0.356 (95% CI 0.119–1.068)"
+    significance:
+      AtezoBev_PFS_logrank_p: 0.00900
+      Sorafenib_PFS_logrank_p: 0.89935
+      arm_x_CD8_interaction_PFS_p: 0.1814
+      arm_x_CD8_interaction_OS_p: 0.0653
+    interpretation_status: supported_with_boundary
+    strength_class: supported_limited
+    manuscript_priority: main_and_supplement
+    figure_candidate: F4_imbrave150_orthogonal
+    caveats:
+      - Within-arm benefit of CD8-high on Atezo+Bev is defensible (PFS log-rank p=0.009) — orthogonal support for "immune-active patients do better on this combination".
+      - The arm × CD8-high interaction is NOT statistically significant for PFS (p=0.18) and only suggestive for OS (p=0.065). A differential-benefit claim for CD8-high between arms is not supported — the earlier wording is withdrawn.
+      - This is orthogonal within-arm support, not predictive validation of the reframe.
+
+# ==========================================================================
+# RECLASSIFICATION OF EARLIER HEADLINE RESULTS UNDER THE REFRAME
+# ----------------------------------------------------------------------
+# Canonical source of truth for strength_class of legacy result_ids.
+# Allowed values: strong, supported_limited, exploratory, null,
+# inconclusive, likely_artifact. Each legacy entry whose strength is
+# changed here also carries superseded_by / active_reframe_version in its
+# own record so downstream tooling resolves one active status per result.
+# ==========================================================================
+reframe_reclassification:
+  R_L1_cnv_chain:                   exploratory           # all CNV R-vs-NR metrics now non-significant (p>=0.29); chain is descriptive only
+  R_L1_cnv_chromosome_arm:          exploratory           # chr5 only has any BH<0.10 bins; retained as descriptive detail
+  R_L1_cnv_pathway_enrichment:      null                  # IFN-gamma BH=0.128, not significant; pathway enrichment is null
+  R_L1_cnv_bins_responder_gained:   exploratory           # some chr5 bins survive BH; weak signal
+  R_L1_cnv_clone_diversity:         null                  # p=0.288 — non-significant; downgraded from exploratory
+  R_L1_cnv_score_sd:                null                  # p=0.318 — non-significant
+  R_L1_cnv_pathway_IFNG:            null                  # BH=0.128 — not significant
+  R_T2_3_cnv_exhaustion_mediation:  exploratory           # already flagged; remains
+  R_L2_regulon_layer_auc:           null                  # near-null, retained for honesty
+  R_L3_composition_discovery:       supported_limited     # discovery AUC=0.983; not transferable
+  R_L3_composition_noTech:          supported_limited
+  R_VAL_L3:                         null                  # val AUC=0.611, CI crosses 0.5, driven by 2-3 outliers
+  R_VAL_L5:                         null                  # val AUC=0.506, CI straddles 0.5
+  R_VAL_ensemble:                   null                  # val AUC=0.482 — below chance
+  R_ensemble_discovery:             supported_limited     # discovery AUC=0.933; discovery-only
+  R_ensemble_coefficients:          supported_limited
+  R_L4_io_signatures_discovery:     supported_limited     # subsumed by R_REFRAME_discovery_modules
+  R_L5_nmf_discovery:               supported_limited     # disc AUC=0.731
+  R_L5_NMF10_BH:                    null                  # no NMF program BH-significant after correction (NMF4 p_BH=0.199); prior claim withdrawn
+  R_L5_NMF10_transfer_diag:         exploratory           # composition-explained; demoted from supported
+  R_L5_NMF10_cappuyns_transfer:     likely_artifact       # pooled NMF10 survives only because of zero Cappuyns plasma-frac
+  R_L2_spatial_gse238264_RvsNR:     exploratory           # demoted; n=7 sections cannot anchor R-vs-NR claim
+  R_complementary_immune_ratios:    null                  # all AUC < 0.5; retained
+  R_TRIAL_imbrave150_cox:           null                  # interaction null (PFS p=0.18, OS p=0.065); superseded_by R_REFRAME_imbrave150_orthogonal
+  R_T2_1_stratified_permutation:    supported_limited
+  R_T3_2_lasso_C_sensitivity:       exploratory           # robustness ok but the underlying model is now null on transfer
+
+# ==========================================================================
+# STRONG / DEFENSIBLE CLAIMS UNDER THE REFRAME (max 5)
+# ----------------------------------------------------------------------
+# Spatial claim removed from this list under the reframe (effect size and
+# section count do not meet the defensible-claim ceiling); it remains
+# documented in R_REFRAME_spatial_modules_LOSO as exploratory and in supplement.
+# ==========================================================================
+reframe_defensible_claims:
+  - claim: "In the GSE206325 discovery cohort (n=24, 7R/17NR), Responders show a coherent immune-active state — a tight CORE-4 axis of CD8 dysfunctional/exhaustion, Tfh-like, TLS and immune-checkpoint modules (pairwise rho 0.888–0.993) with a partially aligned plasma/NMF10 satellite (rho 0.624–0.770 against the core)."
+    evidence: [R_REFRAME_discovery_modules]
+    strength_class: supported_limited
+    boundary: Discovery-only, n=24, patient-level; describe as one core axis + plasma-linked satellite, not a single fully collapsed axis.
+
+  - claim: "This discovery axis does not transfer to Cappuyns2023 at BH<0.10 (best BH≈0.51); three of the top five discovery modules flip sign, despite adequate dynamic range in all 14 modules. The prior framing of the discovery modules as a cross-cohort-validated immune signature is withdrawn."
+    evidence: [R_REFRAME_cappuyns_transfer]
+    strength_class: null
+    boundary: Honest null finding; must be preserved in Results.
+
+  - claim: "The previously reported cell-fraction Layer-3 predictor and multi-layer ensemble are not transferable (L3 AUC=0.50 on Cappuyns; ensemble AUC≈0.58 at the headline C); the collapse is not a regularisation artefact."
+    evidence: [R_VAL_L3, R_VAL_ensemble, R_T3_2_lasso_C_sensitivity]
+    strength_class: null
+    boundary: Null finding; fractions are atlas-specific.
+
+  - claim: "The NMF10 response association in GSE206325 is no longer supported after plasma adjustment (residualised Spearman 0.67→0.21, p=0.34; logit p_NMF10=0.96 with frac_B_Plasma as covariate). NMF10 should be retained as a descriptive plasma/TLS-linked marker, not an independent programme."
+    evidence: [R_REFRAME_nmf10_plasma_adjusted]
+    strength_class: likely_artifact
+    boundary: The prior claim that NMF10 is response-associated independently of plasma abundance is withdrawn; pooled logit "survival" is an artefact of structurally-zero plasma-frac in Cappuyns.
+
+  - claim: "IMbrave150 (n=177; 119 Atezo+Bev + 58 Sorafenib) provides orthogonal within-arm support that CD8-high patients gain PFS on Atezo+Bev (8.4 vs 5.6 mo, log-rank p=0.009), but the arm × CD8 interaction is not significant (PFS p=0.18, OS p=0.065). CD8-high is therefore prognostic within the Atezo+Bev arm, not a marker of differential benefit between arms."
+    evidence: [R_REFRAME_imbrave150_orthogonal]
+    strength_class: supported_limited
+    boundary: Orthogonal within-arm support; NOT differential-benefit validation between arms.
+
+# ==========================================================================
+# NULL FINDINGS THAT MUST STAY IN THE STORY
+# ==========================================================================
+reframe_preserved_nulls:
+  - R_VAL_L3                         # Layer-3 cell-fraction transfer fails (0 features survive in Cappuyns)
+  - R_VAL_ensemble                   # Ensemble transfer AUC drops to ~0.58 at the headline C
+  - R_REFRAME_cappuyns_transfer      # locked modules do not transfer
+  - R_complementary_immune_ratios    # classical CD8:Treg / M1:M2 ratios are near chance
+  - R_L2_regulon_layer_auc           # regulon layer near-null
+  - R_T2_3_cnv_exhaustion_mediation  # underpowered, indirect 95% CI includes zero
+  - R_L2_spatial_gse238264_RvsNR     # insufficient section-level power for R-vs-NR classification
+  - R_REFRAME_imbrave150_orthogonal  # interaction null (no differential benefit between arms)
+  - R_TRIAL_imbrave150_cox           # underlying interaction test remains null
+
+# ==========================================================================
+# CLAIMS THAT MUST BE REMOVED FROM THE MANUSCRIPT
+# ==========================================================================
+reframe_removed_claims:
+  - CNV as the main driver of response, or as the anchor of a causal CNV→exhaustion→response chain.
+  - Multi-layer ensemble presented as a generalizable biomarker.
+  - 'Validated cross-cohort immune signature based on Cappuyns transfer of raw features.'
+  - NMF10 described as a programme whose response-association is independent of plasma-cell abundance.
+  - CD8-high framed as conferring differential PFS/OS benefit on Atezo+Bev vs Sorafenib.
+  - Spatial responder-vs-non-responder classification from n=7 Visium sections.
+  - Any wording that attributes the pooled n=56 unit count to GSE206325 alone.
+  - Cell-level or spot-level p-values used as primary evidence for R-vs-NR claims.
+  - Cherry-picked single-section spatial exemplars selected for visual impact.
+
+# ==========================================================================
+# RANKED MAIN-FIGURE SHORTLIST
+# ----------------------------------------------------------------------
+# Main (F1–F4) are directly supported by audited tables in out/06_reframe/.
+# F5 and F6 are moved to supplement to respect the exploratory/synthesis
+# status of their underlying evidence.
+# ==========================================================================
+reframe_main_figures:
+  - figure_id: F1_cohort_overview
+    tier: main
+    question: Who are the patients, and what does each cohort contribute?
+    panels:
+      - A. Cohort/role schematic (GSE206325 discovery 24; Cappuyns transfer 32; IMbrave150 orthogonal 177; GSE238264 spatial 7; GSE281759 context).
+      - B. Patient-level audit bar for GSE206325 (29 raw → 28 labelled → 24 retained).
+      - C. Unit/claim boundary table (what each cohort can and cannot answer).
+    evidence: [R_REFRAME_unit_reconciliation]
+    audited_sources:
+      - out/06_reframe/tables/cohort_unit_reconciliation.csv
+      - out/06_reframe/tables/gse206325_patient_audit.csv
+
+  - figure_id: F2_discovery_immune_axis
+    tier: main
+    question: What immune state in the tumour ecosystem tracks with response in discovery?
+    panels:
+      - A. Forest of rank-biserial effects for the 14 locked modules in GSE206325, BH-labelled.
+      - B. Correlation heatmap of the 14 modules highlighting the CORE-4 block and the plasma/NMF10 satellite (annotated with the actual rho ranges — core-4 0.89–0.99; plasma_vs_core4 0.62–0.77).
+      - C. Patient dotplot of the pre-computed immune-axis PC1 score (signed toward CD8_dysfunction) by R/NR, using the audited table.
+    evidence: [R_REFRAME_discovery_modules]
+    audited_sources:
+      - out/06_reframe/tables/discovery_module_associations.csv
+      - out/06_reframe/tables/discovery_module_correlation.csv
+      - out/06_reframe/tables/discovery_top5_axis_summary.csv
+      - out/06_reframe/tables/discovery_immune_axis_pc1.csv
+      - out/06_reframe/tables/discovery_immune_axis_pc1_loadings.csv
+
+  - figure_id: F3_transfer_failure_and_composition
+    tier: main
+    question: Does the discovery axis transfer, and is NMF10 a true independent programme?
+    panels:
+      - A. Discovery vs Cappuyns rank-biserial scatter (with sign flips labelled).
+      - B. NMF10 scatter, discovery cohort, naive vs plasma-adjusted Spearman.
+      - C. Gene-overlap and dynamic-range diagnostics across the 14 modules.
+    evidence: [R_REFRAME_cappuyns_transfer, R_REFRAME_nmf10_plasma_adjusted]
+    audited_sources:
+      - out/06_reframe/tables/cappuyns_locked_transfer.csv
+      - out/06_reframe/tables/nmf10_plasma_reframe.csv
+
+  - figure_id: F4_imbrave150_orthogonal
+    tier: main
+    question: Does bulk clinical data support the immune-active ecology within Atezo+Bev?
+    panels:
+      - A. Kaplan–Meier PFS by CD8-high within Atezo+Bev arm (log-rank p=0.009).
+      - B. Kaplan–Meier PFS by CD8-high within Sorafenib arm (log-rank p=0.90).
+      - C. Forest of Cox arm × CD8 interaction terms for PFS and OS (both NS).
+    evidence: [R_REFRAME_imbrave150_orthogonal]
+    audited_sources:
+      - out/06_reframe/tables/imbrave150_orthogonal_support.csv
+
+  - figure_id: S5_spatial_modules
+    tier: supplement
+    question: Where in tissue do the immune-active modules localize?
+    panels:
+      - A. Per-section module score bars (8 modules × 7 sections).
+      - B. Visium spot-level map of CD8-dysfunction and antigen-presentation for the section with the MEDIAN module score within each response group (pre-specified rule — no selection by effect size or visual impact).
+      - C. LOSO exact-permutation p stability plot for the 8 modules.
+    evidence: [R_REFRAME_spatial_modules_LOSO, R_T3_1_spatial_spot_qc]
+    audited_sources:
+      - out/06_reframe/tables/spatial_modules_per_section.csv
+      - out/06_reframe/tables/spatial_RvsNR_section_level_LOSO.csv
+      - out/06_reframe/tables/spatial_niche_coherence.csv
+    section_selection_rule: median-module-score section within each response group (pre-specified; replaces any prior selection by effect size or visual impact).
+
+  - figure_id: S6_synthesis_and_null_landscape
+    tier: supplement
+    question: What is defensible, what isn't, and how should readers calibrate?
+    panels:
+      - A. Evidence-strength matrix (modality × strength_class) using only the six allowed schema values.
+      - B. Null-findings panel (L3 transfer, ensemble transfer, classical ratios, regulons, CNV mediation, spatial R-vs-NR, IMbrave150 interaction).
+      - C. One-page revised claim boundary table.
+    evidence: [reframe_defensible_claims, reframe_preserved_nulls]
+    audited_sources: [results_index.yaml]
+
+
+# ==========================================================================
+# 2026-05-05 SAMPLE-PREVALENCE AUDIT (per-analysis carrier proportions)
+# ==========================================================================
+# Adds a uniform "what proportion of patients show the effect, and how do they
+# differ?" view across analyses. Helper: scripts/_shared/sample_prevalence.py.
+# ==========================================================================
+
+  - result_id: R_PREVALENCE_multilayer_features
+    question: For each top L1–L5 patient-level feature, what fraction of patients carries the effect (Q3 cutoff), and how do carriers differ on other layers?
+    modality: integrated patient-level features (GSE206325 discovery, n=24)
+    comparison: carrier (≥Q3) vs other within each L1–L5 feature; plus carrier-vs-other Mann–Whitney across orthogonal properties
+    inputs:
+      - out/05_multilayer/tables/patient_multilayer_features.csv
+    sample_unit: patient
+    statistical_method: quantile thresholding + Mann–Whitney U (carrier vs other)
+    covariates: response (group breakdown), dataset
+    multiple_testing: none — prevalence is descriptive and per-feature; effect-size matrix is for visualisation
+    main_outputs:
+      - out/05_multilayer/tables/05a_multilayer_prevalence.csv
+      - out/05_multilayer/figures/05a_multilayer_prevalence.png
+    qc_status: pending_run
+    interpretation_status: pending
+    strength_class: exploratory
+    manuscript_priority: supplement
+    figure_candidate: S_prevalence_multilayer
+    caveats:
+      - Q3 carrier definition is descriptive, not a clinical cutoff.
+      - With n=24 discovery patients, per-feature carrier counts are small; treat per-property comparisons as hypothesis-generating.
+
+  - result_id: R_PREVALENCE_cnv_chromosome
+    question: For each chromosome with a non-trivial cohort-level CNV residual delta, what proportion of Responders vs Non-Responders carry the alteration (Q3 |residual| cutoff)?
+    modality: scRNA-seq inferCNV residuals aggregated per patient × chromosome
+    comparison: per-chromosome carrier fraction in Responders vs Non-Responders
+    inputs:
+      - data/processed/integrated_io_atlas_cnv.h5ad
+      - out/05_multilayer/tables/patient_multilayer_features.csv
+    sample_unit: patient
+    statistical_method: descriptive carrier fraction; direction matched to cohort delta
+    covariates: response
+    multiple_testing: none — descriptive
+    main_outputs:
+      - out/05_multilayer/tables/cnv_chromosome_patient_prevalence.csv
+      - out/05_multilayer/figures/05g_cnv_chr_prevalence.png
+    qc_status: pending_run
+    interpretation_status: pending
+    strength_class: exploratory
+    manuscript_priority: supplement
+    figure_candidate: S_cnv_chr_prevalence
+    caveats:
+      - inferCNV residuals are noisy; per-chromosome aggregation reduces but does not eliminate variance.
+      - With 7 R / 17 NR, fractions in the responder arm are quantised (1/7, 2/7, …) and should not be over-interpreted.
+
+  - result_id: R_PREVALENCE_bulk_deconvolution
+    question: For each major deconvolved cell type, what fraction of bulk samples are "high carriers" (≥Q3), and how do those samples differ on response, survival, or immune totals?
+    modality: bulk RNA-seq deconvolution (IMbrave150, CheckMate459)
+    comparison: carrier (≥Q3 fraction) vs other for the top deconvolved cell types
+    inputs:
+      - out/02c_bulk_deconvolution/tables/deconvolution_IMbrave150.csv
+      - out/02c_bulk_deconvolution/tables/deconvolution_CheckMate459.csv
+    sample_unit: patient
+    statistical_method: quantile thresholding + Mann–Whitney U
+    covariates: response, arm (when available), PFS/OS
+    multiple_testing: none — descriptive overlay on existing trial-level analyses
+    main_outputs:
+      - out/02c_bulk_deconvolution/tables/02c_IMbrave150_prevalence.csv
+      - out/02c_bulk_deconvolution/figures/02c_IMbrave150_prevalence.png
+    qc_status: pending_run
+    interpretation_status: pending
+    strength_class: exploratory
+    manuscript_priority: supplement
+    figure_candidate: S_bulk_deconv_prevalence
+    caveats:
+      - NNLS deconvolution is a fallback; for production use the CIBERSORTx web service with the generated reference.
+      - Carrier definition is cohort-relative (Q3) and does not map to an absolute clinical threshold.
+
+# ==========================================================================
+# 2026-05-05 PIPELINE NOTES
+# --------------------------------------------------------------------------
+# - integrated_io_atlas.h5ad on disk was built with Harmony; the preprocessing
+#   script (01_preprocess_integrate.py) now uses scVI. Re-running
+#   slurm/02_preprocess_integrate.sh will regenerate the atlas with
+#   adata.uns["integration_method"] = "scVI" and X_scVI / X_integrated obsm.
+# - Geneformer SLURM (06b_geneformer.sh) now auto-detects no-GPU clusters and
+#   applies CPU-safe defaults (max-cells-per-patient=200, batch-size=32,
+#   --force-cpu). Job 760 (22 h CPU stall, batch_size 8 over ~1M cells) is
+#   resolved.
+# - Cell2location ST annotation (02b_visium_celltype_umap.py) is configured
+#   for 30,000 epochs; SLURM 03b updated to 16 CPU / 128 GB / 24 h.
+
+# ==========================================================================
+# 2026-05-08 PHASE 1–3 SPATIAL CNV / scVI / BULK DECONV ENTRIES
+# --------------------------------------------------------------------------
+
+  - result_id: P1.1_spatial_infercnv_perspot
+    question: Per-spot inferred CNV across 24 HCC Visium sections
+    modality: spatial_transcriptomics
+    comparison: descriptive (no contrast)
+    input_dataset:
+      - GSE238264 (7 IO-treated sections, R=4 / NR=3 — HCC5NR skipped due to 0 reference cells)
+      - GSE281759 (17 multi-region sections, no IO label)
+    sample_unit: spot
+    statistical_method: infercnvpy 0.6.1 (HMM smoothing, gene-window mode, 23,419 genes)
+    covariates: cell-type-derived reference (immune+stromal vs hepatocyte/tumor)
+    multiple_testing: NA
+    main_outputs:
+      - out/02b_spatial_biomarkers/cnv/tables/spatial_infercnvpy_spot.csv
+      - out/02b_spatial_biomarkers/cnv/tables/spatial_infercnvpy_run_log.csv
+      - out/02b_spatial_biomarkers/cnv/npz/{sample_id}_cnv.npz   # per-sample matrices
+    qc_status: passed (23/24 samples; HCC5NR skipped — no annotated reference spots)
+    interpretation_status: complete
+    effect_size_summary: 43,196 spots × 2,115 windows; common chr_pos axis confirmed
+    significance_summary: NA
+    strength_class: supported_but_limited
+    manuscript_priority: main_figure
+    figure_candidate: F_spatial_cnv_universal
+    recommended_panel_type: spatial_map
+    expected_information_density: very_high
+    expected_label_burden: high
+    caveats:
+      - Window-based CNV (2,115 bins) — not gene-resolution arm calls.
+      - HCC5NR excluded (no cells annotated as immune/stromal reference).
+      - Reference/observation classification depends on cell2location annotations.
+
+  - result_id: P1.2_spatial_cnv_universal_heatmap
+    question: Universal cross-sample heatmap of inferred CNV across all spots
+    modality: spatial_transcriptomics
+    comparison: visual (Responder vs Non_Responder vs unlabelled; tumor vs non-tumor)
+    input_dataset:
+      - out/02b_spatial_biomarkers/cnv/npz/*  (23 npz files)
+    sample_unit: spot
+    statistical_method: row-ordering on response/tumor/sample/cnv_score; per-sample 75 %ile cutoff for tumor classification on observation spots
+    covariates: response, dataset, sample, cell_type, tumor_status, cnv_score
+    multiple_testing: NA (visualization)
+    main_outputs:
+      - out/02b_spatial_biomarkers/cnv/figures/spatial_cnv_universal_heatmap.png
+      - out/02b_spatial_biomarkers/cnv/figures/spatial_cnv_universal_heatmap.pdf
+      - out/02b_spatial_biomarkers/cnv/tables/spatial_cnv_universal_spotmeta.csv
+    qc_status: passed (43,196 spots × 2,115 windows assembled; chr boundaries consistent)
+    interpretation_status: complete
+    effect_size_summary: clear chr-arm gain/loss bands in tumor strata; reference/non-tumor spots near baseline
+    significance_summary: NA
+    strength_class: supported_but_limited
+    manuscript_priority: main_figure
+    figure_candidate: F_spatial_cnv_universal
+    recommended_panel_type: heatmap
+    expected_information_density: very_high
+    expected_label_burden: high
+    caveats:
+      - Tumor cutoff is empirical (within-sample 75th percentile of cnv_score on observation spots).
+      - Window-mode CNV bands resemble published cytoband patterns but exact arm mapping is approximate.
+
+  - result_id: P1.3_spatial_arm_cnv_burden_RvsNR
+    question: Per-arm CNV burden differences between Responders and Non-Responders
+    modality: spatial_transcriptomics
+    comparison: Responder (n=4) vs Non_Responder (n=2) (GSE238264 only)
+    input_dataset:
+      - out/02b_spatial_biomarkers/cnv/tables/spatial_arm_burden_per_patient.csv
+    sample_unit: patient (sample-level summary)
+    statistical_method: Mann–Whitney U on per-patient mean amplitude / mean burden per arm
+    covariates: response
+    multiple_testing: BH within each metric
+    main_outputs:
+      - out/02b_spatial_biomarkers/cnv/tables/spatial_arm_burden_RvsNR.csv
+      - out/02b_spatial_biomarkers/cnv/tables/spatial_arm_burden_PvsR_GSE281759.csv
+      - out/02b_spatial_biomarkers/cnv/figures/spatial_arm_burden_RvsNR.png
+    qc_status: limited — N=4 vs N=2 underpowered; minimum two-sided MWU p ≈ 0.067
+    interpretation_status: complete
+    effect_size_summary: no arm reaches BH<0.1; Δ-medians dominated by sampling variance
+    significance_summary: 0/138 arm × metric tests BH-significant (R vs NR); 0/0 P vs R (n_each=1)
+    strength_class: exploratory
+    manuscript_priority: supplement
+    figure_candidate: S_spatial_arm_burden
+    recommended_panel_type: forest_plot
+    expected_information_density: medium
+    expected_label_burden: high
+    caveats:
+      - Severely underpowered (N=4 vs 2 after HCC5NR exclusion).
+      - Arm defined by median-window split within chromosome — approximate, not cytoband-anchored.
+      - No primary-vs-recurrence test possible (1 vs 1 in GSE281759).
+
+  - result_id: P2_spatial_scvi_integration
+    question: Integration and joint UMAP of all 24 Visium sections, batch-corrected per sample
+    modality: spatial_transcriptomics
+    comparison: cross-section integration; coloring by sample, dataset, response, cell type, tumor status, immunotype
+    input_dataset:
+      - data/spatial_data/GSE238264_HCC_IO_Visium/*.h5ad (7)
+      - data/spatial_data/GSE281759_HCC_MultiRegion/*.h5ad (17)
+      - out/02b_spatial_biomarkers/tables/{gse238264,gse281759}_celltype_annotations.csv
+      - out/02b_spatial_biomarkers/cnv/tables/spatial_cnv_universal_spotmeta.csv (tumor_status)
+    sample_unit: spot
+    statistical_method: scVI 1.4.2 (n_latent=30, ZINB, batch_key=sample_id, 80 epochs CPU); seurat_v3 HVG (2,000)
+    covariates: sample_id (batch); response, dataset, cell_type, tumor_status, immunotype overlaid
+    multiple_testing: NA
+    main_outputs:
+      - data/processed/spatial_integrated_scvi.h5ad
+      - out/02b_spatial_biomarkers/figures/spatial_scvi_umap_composite.png
+      - out/02b_spatial_biomarkers/figures/spatial_scvi_umap_composite.pdf
+      - out/02b_spatial_biomarkers/tables/spatial_scvi_integration_metrics.txt
+    qc_status: passed — 43,277 spots, 24 samples, mean within-sample 20-NN purity = 0.576 (random ≈ 1/24 = 0.042)
+    interpretation_status: complete
+    effect_size_summary: tumor / non-tumor and broad lineages co-localize across donors; sample-specific clusters remain visible
+    significance_summary: NA
+    strength_class: supported_but_limited
+    manuscript_priority: main_figure
+    figure_candidate: F_spatial_scvi_atlas
+    recommended_panel_type: embedding
+    expected_information_density: high
+    expected_label_burden: medium
+    caveats:
+      - Tumor / normal still partially separated by sample — biological structure dominates.
+      - Cell-type harmonization collapses fine subsets (e.g. cDC1/cDC2/mregDC → DC).
+      - 1,280 spots have no CNV-derived tumor_status (HCC5NR + downstream QC removals).
+
+  - result_id: P3_bulk_deconv_advanced
+    question: Pseudobulk-based deconvolution of 79 single-cell HCC patients against a 43-cell-type CIBERSORTx-style reference; R-vs-NR contrast and IMbrave150 survival overlay
+    modality: bulk_RNAseq_pseudobulk + clinical_survival
+    comparison: Responder (n=26) vs Non-Responder (n=34); IMbrave150 CD8-Hi vs CD8-Lo per arm (Atezo+Bev / Sorafenib)
+    input_dataset:
+      - data/processed/integrated_io_atlas.h5ad (1.06M cells, 79 patients)
+      - out/02c_bulk_deconvolution/tables/cibersortx_hcc_reference.tsv
+      - data/clinical_trials/IMbrave150/imbrave150_fig3b_patient_data.csv (n=177)
+    sample_unit: patient
+    statistical_method: NNLS (z-scaled), Mann–Whitney U + BH; KM with Greenwood SE + log-rank
+    covariates: arm (KM), response (deconv contrast)
+    multiple_testing: BH on 43 cell types (R vs NR)
+    main_outputs:
+      - out/02c_bulk_deconvolution/tables/pseudobulk_per_patient.csv
+      - out/02c_bulk_deconvolution/tables/deconv_fractions_per_patient.csv
+      - out/02c_bulk_deconvolution/tables/deconv_RvsNR_stats.csv
+      - out/02c_bulk_deconvolution/tables/imbrave150_km_summary.csv
+      - out/02c_bulk_deconvolution/figures/bulk_deconv_advanced_composite.png
+    qc_status: limited — deconv vs ground-truth r² = 0.19 (lineage-level); IMbrave150 KM null within both arms
+    interpretation_status: complete
+    effect_size_summary: Macrophage_Kupffer p=0.0045 (padj=0.19) higher in R; CD4_Memory p=0.012 (padj=0.26); B_Plasma p=0.019 (padj=0.27). KM logrank Atezo+Bev p=0.605, Sorafenib p=0.878.
+    significance_summary: 0/43 cell types BH<0.1; 0/2 KM strata significant
+    strength_class: supported_but_limited
+    manuscript_priority: supplement
+    figure_candidate: S_bulk_deconv_advanced
+    recommended_panel_type: heatmap_like_matrix
+    expected_information_density: very_high
+    expected_label_burden: very_high
+    caveats:
+      - Pseudobulk is a self-consistency check, not real bulk RNA-seq from clinical cohorts.
+      - Reference signature is mean-expression (no per-cell variance), and standardization compresses dynamic range — top-15 stacked-bar fractions are near-uniform per type.
+      - IMbrave150 raw counts not provided in this trial dump; KM uses pre-computed CD8 % (Hi/Lo) from Fig 3b only.
+      - Lineage-level deconvolution agreement (r² = 0.19) indicates reference-ground-truth domain mismatch.
+
